@@ -56,6 +56,8 @@ export default async function DashboardPage({ searchParams }: { searchParams: Pr
         ))}
       </nav>
 
+      {historic.periods.length > 0 && <div className="flex flex-wrap items-center gap-2"><span className="text-xs font-semibold text-muted">Months with imported GST data:</span>{[...historic.periods].sort().slice(-12).map(key=><Link key={key} href={`/?period=${key}`} className="rounded-full border border-line bg-white px-3 py-1.5 text-xs font-semibold">{parsePeriodKey(key,"MONTHLY").label}</Link>)}</div>}
+
       <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
         <Stat label="Recorded + imported B2B taxable sales" value={formatINR(combinedTaxable)} note={`${formatINR(combinedValue)} invoice value · imported history is partial`} />
         <Link href={`/invoices?period=${d.period.key}`}><Stat label="Invoices recorded" value={d.totals.issuedCount + imported.count} note={`${d.totals.issuedCount} issued in Compte · ${imported.count} imported`} /></Link>
