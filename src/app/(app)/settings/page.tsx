@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Package, Users, FileInput } from "lucide-react";
+import { Package, Users, FileInput, Landmark } from "lucide-react";
 import { requirePageContext } from "@/server/auth/session";
 import { getBusiness } from "@/server/services/business";
 import { integrationStatus, env } from "@/server/env";
@@ -29,6 +29,7 @@ export default async function SettingsPage() {
         <Link href="/customers"><Card className="flex items-center gap-3 hover:bg-canvas"><Users className="size-6 text-brand-600" /><div><p className="font-semibold">Customers</p><p className="text-xs text-muted">Names, GSTINs, delivery states</p></div></Card></Link>
         <Link href="/products"><Card className="flex items-center gap-3 hover:bg-canvas"><Package className="size-6 text-brand-600" /><div><p className="font-semibold">Products & tax settings</p><p className="text-xs text-muted">HSN/SAC, GST rates, units</p></div></Card></Link>
         <Link href="/gst-history"><Card className="flex items-center gap-3 hover:bg-canvas"><FileInput className="size-6 text-brand-600" /><div><p className="font-semibold">Historical GST dashboard</p><p className="text-xs text-muted">Plain-language summaries in English, Hindi and Marathi</p></div></Card></Link>
+        <Link href="/bank-reconciliation"><Card className="flex items-center gap-3 hover:bg-canvas"><Landmark className="size-6 text-brand-600" /><div><p className="font-semibold">Bank / UPI reconciliation</p><p className="text-xs text-muted">Upload statements and confirm invoice payments</p></div></Card></Link>
         <Link href="/gst-import"><Card className="flex items-center gap-3 hover:bg-canvas"><FileInput className="size-6 text-brand-600" /><div><p className="font-semibold">Import GST returns</p><p className="text-xs text-muted">Historical invoices, customer GSTINs and HSN data</p></div></Card></Link>
       </div>
       <Card>
