@@ -1,5 +1,6 @@
 import "server-only";
 import path from "node:path";
+import { readFileSync } from "node:fs";
 import PDFDocument from "pdfkit";
 import { brand } from "@/lib/config/brand";
 import { formatIndianNumber } from "@/lib/domain/money";
@@ -17,8 +18,8 @@ const INK = "#1c2321", MUTED = "#5d6b66", LINE = "#d9e0dd", ACCENT = "#1f6f5c", 
 
 function newDoc(title: string) {
   const doc = new PDFDocument({ size: "A4", margin: 36, info: { Title: title, Producer: brand.name, Creator: brand.name } });
-  doc.registerFont("R", REG);
-  doc.registerFont("B", BOLD);
+  doc.registerFont("R", readFileSync(REG));
+  doc.registerFont("B", readFileSync(BOLD));
   doc.font("R").fillColor(INK);
   return doc;
 }
@@ -35,10 +36,15 @@ function toBuffer(doc: PDFKit.PDFDocument): Promise<Buffer> {
 
 const inr = (v: string) => formatIndianNumber(v);
 
-export async function renderInvoicePdf(s: InvoiceSnapshot): Promise<Buffer> {
+export async function renderInvoicePdf(s: InvoiceSnapshot, cancelled = false): Promise<Buffer> {
   const doc = newDoc(`Tax Invoice ${s.invoiceNumber}`);
   const W = doc.page.width - 72;
   const X = 36;
+  if (cancelled) {
+    doc.save().rotate(-30, { origin: [300, 420] }).font("B").fontSize(46)
+      .fillColor("#c33030").opacity(0.18).text("CANCELLED", 50, 360, { width: 500, align: "center" }).restore();
+    doc.opacity(1);
+  }
 
   if (s.isDemo) {
     doc.save().rotate(-30, { origin: [300, 420] }).font("B").fontSize(54).fillColor("#e8b4b4").opacity(0.35).text("DEMO — FICTIONAL", 60, 380, { width: 500, align: "center" }).restore();

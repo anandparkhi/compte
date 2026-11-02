@@ -184,7 +184,7 @@ export function ReviewEditor({ labels: L, initial, customers, products, states, 
 
       <div className="fixed inset-x-0 bottom-16 z-20 border-t border-line bg-white/95 p-3 backdrop-blur lg:static lg:bottom-auto lg:border-0 lg:bg-transparent lg:p-0">
         <div className="mx-auto flex max-w-4xl items-center gap-2">
-          <Button variant="danger" onClick={async () => { if (!confirm("Discard this draft?")) return; await api(`/api/invoices/${inv.id}`, { method: "DELETE" }); router.push("/invoices"); }} aria-label={L.review_discard}><Trash2 className="size-4" /><span className="hidden sm:inline">{L.review_discard}</span></Button>
+          <Button variant="danger" onClick={async () => { if (!confirm("Are you sure you want to delete this draft invoice? This cannot be undone.")) return; try { await api(`/api/invoices/${inv.id}`, { method: "DELETE" }); router.push("/invoices"); router.refresh(); } catch (e) { setErr(errorText(e)); } }} aria-label="Delete draft invoice"><Trash2 className="size-4" /><span>Delete draft</span></Button>
           <span className="flex-1 text-center text-xs text-muted" aria-live="polite">{saving ? <span className="inline-flex items-center gap-1"><Loader2 className="size-3 animate-spin" />Saving…</span> : dirty ? "Unsaved" : "Draft saved"}</span>
           <Button size="lg" onClick={() => setConfirmOpen(true)} disabled={!canIssue}><CheckCircle2 className="size-5" />{L.review_confirm}</Button>
         </div>

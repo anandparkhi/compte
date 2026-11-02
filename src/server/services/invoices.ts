@@ -227,6 +227,35 @@ export async function discardDraft(ctx: Ctx, invoiceId: string) {
   await audit({ businessId: ctx.businessId, userId: ctx.userId, action: "INVOICE_DRAFT_DISCARDED", entityType: "Invoice", entityId: invoiceId });
 }
 
+/** Drafts can be deleted. Issued invoices may only be cancelled, with their number and
+ * original snapshot retained. Payments and sent invoices require a formal adjustment. */
+export async function removeInvoice(ctx: Ctx, invoiceId: string) {
+  assertCanWrite(ctx);
+  return prisma.$transaction(async tx => {
+    // PostgreSQL row lock prevents concurrent delete/cancel requests.
+    const rows = await tx.$queryRaw<{ id: string }[]>`SELECT "id" FROM "Invoice" WHERE "id" = ${invoiceId} AND "businessId" = ${ctx.businessId} FOR UPDATE`;
+    if (!rows.length) throw notFound("Invoice");
+    const invoice = await tx.invoice.findUniqueOrThrow({ where: { id: invoiceId } });
+    if (invoice.status === "DRAFT") {
+      await tx.invoice.delete({ where: { id: invoiceId } });
+      await audit({businessId:ctx.businessId,userId:ctx.userId,action:"INVOICE_DRAFT_DELETED",entityType:"Invoice",entityId:invoiceId},tx);
+      return { action:"DELETED" as const };
+    }
+    if (invoice.status === "CANCELLED") throw new AppError(409,"ALREADY_CANCELLED","This invoice was already cancelled.");
+    if (invoice.status !== "ISSUED") throw new AppError(409,"INVALID_STATUS","This invoice cannot be deleted.");
+    const [payments, sent] = await Promise.all([
+      tx.invoicePayment.count({where:{businessId:ctx.businessId,invoiceId}}),
+      tx.emailDelivery.count({where:{businessId:ctx.businessId,invoiceId,status:"SENT"}}),
+    ]);
+    if (payments > 0) throw new AppError(409,"PAYMENT_EXISTS","This invoice has recorded payments. Reconcile the payment and use a formal credit note or accountant-assisted correction instead.");
+    if (sent > 0) throw new AppError(409,"ALREADY_SENT","This invoice was emailed to a customer. Do not cancel it silently; use a credit note or consult your accountant.");
+    // The original invoice number, snapshot and integrity hash remain unchanged.
+    await tx.invoice.update({where:{id:invoiceId},data:{status:"CANCELLED"}});
+    await audit({businessId:ctx.businessId,userId:ctx.userId,action:"INVOICE_CANCELLED",entityType:"Invoice",entityId:invoiceId,metadata:{invoiceNumber:invoice.invoiceNumber,grandTotal:invoice.grandTotal}},tx);
+    return { action:"CANCELLED" as const };
+  });
+}
+
 // ---------------------------------------------------------------------------
 // Issuance
 // ---------------------------------------------------------------------------
@@ -322,7 +351,7 @@ export async function issueInvoice(ctx: Ctx, invoiceId: string, raw: unknown) {
 
 /** Verifies the stored snapshot against its hash before any document is produced from it. */
 export function readVerifiedSnapshot(inv: { snapshot: string | null; snapshotHash: string | null; status: string }): InvoiceSnapshot {
-  if (inv.status !== "ISSUED" || !inv.snapshot || !inv.snapshotHash) throw new AppError(409, "NOT_ISSUED", "Only issued invoices have a PDF");
+  if (!["ISSUED","CANCELLED"].includes(inv.status) || !inv.snapshot || !inv.snapshotHash) throw new AppError(409, "NOT_ISSUED", "Only issued invoices have a PDF");
   const h = createHash("sha256").update(inv.snapshot).digest("hex");
   if (h !== inv.snapshotHash) throw new AppError(500, "SNAPSHOT_TAMPERED", "Invoice snapshot integrity check failed");
   return JSON.parse(inv.snapshot) as InvoiceSnapshot;
@@ -346,8 +375,9 @@ export async function listInvoices(ctx: Ctx, filter: { status?: string; customer
   return rows.map((r) => ({ ...r, invoiceDate: toDateString(r.invoiceDate) }));
 }
 
-export async function getInvoiceForDocument(ctx: Ctx, invoiceId: string) {
+export async function getInvoiceForDocument(ctx: Ctx, invoiceId: string, includeCancelled = false) {
   const inv = await prisma.invoice.findFirst({ where: { id: invoiceId, businessId: ctx.businessId } });
   if (!inv) throw notFound("Invoice");
+  if (inv.status === "CANCELLED" && !includeCancelled) throw new AppError(409,"INVOICE_CANCELLED","Cancelled invoices cannot be shared as new tax invoices.");
   return { invoice: inv, snapshot: readVerifiedSnapshot(inv) };
 }
