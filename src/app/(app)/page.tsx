@@ -92,7 +92,7 @@ export default async function DashboardPage({ searchParams }: { searchParams: Pr
       <div className="grid gap-4 lg:grid-cols-2">
         <Card>
           <div className="flex items-center justify-between gap-2"><CardTitle>{copy.returnInfo}</CardTitle><Link href="/returns" className="text-sm font-semibold text-brand-700">{copy.viewReturns} →</Link></div>
-          <div className="mt-3 flex items-start gap-3 rounded-xl bg-canvas p-3"><Landmark className="mt-0.5 size-5 text-brand-700"/><div><p className="text-sm font-semibold">{imported.count ? copy.returnImported : copy.returnUnverified}</p><p className="mt-1 text-xs text-muted">{imported.count ? "{copy.returnNote}" : "{copy.returnEmpty}"}</p></div></div>
+          <div className="mt-3 flex items-start gap-3 rounded-xl bg-canvas p-3"><Landmark className="mt-0.5 size-5 text-brand-700"/><div><p className="text-sm font-semibold">{imported.count ? copy.returnImported : copy.returnUnverified}</p><p className="mt-1 text-xs text-muted">{imported.count ? copy.returnNote : copy.returnEmpty}</p></div></div>
           {d.totals.issuedCount>0 && <p className="mt-3 text-xs text-muted">{copy.taxNew}: {formatINR(d.totals.gst)}. {copy.taxNewNote}</p>}
         </Card>
         <Card>
