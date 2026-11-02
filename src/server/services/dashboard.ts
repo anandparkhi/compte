@@ -13,7 +13,7 @@ export async function dashboard(ctx: Ctx, periodKey?: string) {
   try { period = periodKey ? parsePeriodKey(periodKey, "MONTHLY") : periodForDate(t, "MONTHLY"); } catch { period = periodForDate(t, "MONTHLY"); }
   const range = { gte: dateOnly(period.start), lt: dateOnly(period.endExclusive) };
   const [issued, draftCount, recent, filings] = await Promise.all([
-    prisma.invoice.findMany({ where: { businessId: ctx.businessId, status: "ISSUED", invoiceDate: range }, include: { customer: { select: { id: true, name: true } } } }),
+    prisma.invoice.findMany({ where: { businessId: ctx.businessId, status: "ISSUED", invoiceDate: range }, include: { customer: { select: { id: true, name: true, gstin: true } } } }),
     prisma.invoice.count({ where: { businessId: ctx.businessId, status: "DRAFT" } }),
     prisma.auditLog.findMany({ where: { businessId: ctx.businessId, action: { notIn: ["INVOICE_DRAFT_UPDATED", "USER_LOGGED_IN"] } }, orderBy: { createdAt: "desc" }, take: 8 }),
     prisma.nilReturnFiling.findMany({ where: { businessId: ctx.businessId }, orderBy: { updatedAt: "desc" }, take: 6 }),
@@ -43,6 +43,7 @@ export async function dashboard(ctx: Ctx, periodKey?: string) {
       issuedCount: issued.length,
       draftCount,
     },
+    buyerKeys: [...new Set(issued.map(i=>i.customer?.gstin??i.customer?.id).filter((v):v is string=>!!v))],
     customers: [...byCustomer.values()].map((c) => ({ name: c.name, count: c.count, taxable: sumMoney(c.totals) })).sort((a, b) => Number(b.taxable) - Number(a.taxable)).slice(0, 5),
     recent: recent.map((r) => ({ ...r, metadata: JSON.parse(r.metadata) as Record<string, unknown> })),
     filings,
