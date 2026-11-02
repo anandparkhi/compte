@@ -9,6 +9,7 @@ import { listCustomers, listProducts } from "@/server/services/catalog";
 import { getT } from "@/lib/i18n/server";
 import { Badge, Card, CardTitle, LinkButton, PageHeader } from "@/components/ui";
 import { ReviewEditor } from "@/components/invoice/review-editor";
+import { InvoicePayments } from "@/components/payment/invoice-payments";
 import { EmailInvoice } from "@/components/invoice/email-invoice";
 import { formatINR } from "@/lib/domain/money";
 import { formatDateIN, periodForDate, type FilingFrequency } from "@/lib/domain/periods";
@@ -83,6 +84,7 @@ export default async function InvoicePage({ params }: { params: Promise<{ id: st
           <div className="flex justify-between border-t border-line pt-2 text-base font-bold"><dt>Grand total</dt><dd>{formatINR(s.totals.grandTotal)}</dd></div>
         </dl>
       </Card>
+      <InvoicePayments invoiceId={id} />
       <div className="grid gap-4 md:grid-cols-2">
         <Card>
           <CardTitle className="mb-2">Books & returns</CardTitle>
