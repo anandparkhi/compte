@@ -27,6 +27,15 @@ export async function saveImport(ctx: Ctx, file: File, createCustomers: boolean)
       summary:JSON.stringify({invoices:parsed.invoices.length,customers:parsed.customers.length,hsn:parsed.hsn.length,warnings:parsed.warnings}),
       records:JSON.stringify({invoices:parsed.invoices,hsn:parsed.hsn}),
     }});
+    let productsCreated = 0;
+    for (const h of parsed.hsn) {
+      if (!h.hsn || !h.description.trim()) continue;
+      const exists = await tx.product.findFirst({where:{businessId:ctx.businessId,hsnSac:h.hsn,name:h.description.trim()}});
+      if (!exists) {
+        await tx.product.create({data:{businessId:ctx.businessId,name:h.description.trim(),description:"Historical HSN import: verify price, category, rate and unit before use",kind:"GOODS",hsnSac:h.hsn,unit:h.unit||"NOS",defaultPrice:"0.00",gstRate:String(h.rate),taxSource:"HISTORICAL_IMPORT_UNVERIFIED",taxConfirmedAt:null}});
+        productsCreated++;
+      }
+    }
     let customersCreated = 0;
     if (createCustomers) for (const gstin of parsed.customers) {
       const existing = await tx.customer.findFirst({where:{businessId:ctx.businessId,gstin}});
@@ -35,8 +44,8 @@ export async function saveImport(ctx: Ctx, file: File, createCustomers: boolean)
         customersCreated++;
       }
     }
-    await tx.auditLog.create({data:{businessId:ctx.businessId,userId:ctx.userId,action:"GST_RETURN_IMPORTED",entityType:"GstHistoricalImport",entityId:record.id,metadata:JSON.stringify({sourceHash:parsed.fingerprint,customersCreated})}});
-    return {duplicate:false,id:record.id,customersCreated};
+    await tx.auditLog.create({data:{businessId:ctx.businessId,userId:ctx.userId,action:"GST_RETURN_IMPORTED",entityType:"GstHistoricalImport",entityId:record.id,metadata:JSON.stringify({sourceHash:parsed.fingerprint,customersCreated,productsCreated})}});
+    return {duplicate:false,id:record.id,customersCreated,productsCreated};
   });
 }
 export async function listImports(ctx: Ctx) {

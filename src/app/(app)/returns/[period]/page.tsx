@@ -4,6 +4,7 @@ import { Download } from "lucide-react";
 import { requirePageContext } from "@/server/auth/session";
 import { prisma } from "@/server/db";
 import { AppError } from "@/server/errors";
+import { readHistorical,inReturnPeriod,historicalTotals } from "@/server/services/historical-records";
 import { gstr1Preparation } from "@/server/services/returns";
 import { getT } from "@/lib/i18n/server";
 import { Alert, Card, CardTitle, Empty, LinkButton, PageHeader } from "@/components/ui";
@@ -18,6 +19,9 @@ export default async function PeriodPage({ params }: { params: Promise<{ period:
   let prep;
   try { prep = await gstr1Preparation(ctx, (await params).period); } catch (e) { if (e instanceof AppError && e.status === 422) notFound(); throw e; }
   const all = [...prep.b2b, ...prep.b2cl, ...prep.b2cs];
+  const historic = await readHistorical(ctx.businessId);
+  const imported = inReturnPeriod(historic.invoices,prep.period);
+  const totals = historicalTotals(imported);
   return (
     <div className="mx-auto max-w-5xl space-y-4">
       <PageHeader title={`GSTR-1 — ${prep.period.label}`} subtitle={`GSTN period ${prep.period.key} · prepared from issued invoices only`}
@@ -33,6 +37,12 @@ export default async function PeriodPage({ params }: { params: Promise<{ period:
         <Card className="p-4"><p className="text-xs text-muted">CGST + SGST</p><p className="text-xl font-bold">{formatINR((Number(prep.totals.cgst) + Number(prep.totals.sgst)).toFixed(2))}</p></Card>
         <Card className="p-4"><p className="text-xs text-muted">IGST</p><p className="text-xl font-bold">{formatINR(prep.totals.igst)}</p></Card>
       </div>
+      {prep.period.months.some(m=>historic.periods.includes(String(m.month).padStart(2,"0")+m.year)) && <Card>
+        <CardTitle>Historical GSTR-1 import (read-only)</CardTitle>
+        <p className="mt-2 text-sm">{totals.count} imported B2B invoices · {formatINR(totals.taxable.toFixed(2))} taxable · {formatINR(totals.value.toFixed(2))} invoice value</p>
+        <p className="text-xs text-muted">Imported return data, not independently verified as filed. Excluded from Compte's new GSTR-1 export to avoid double counting.</p>
+        <ul className="mt-3 divide-y divide-line">{imported.map(i=><li className="flex justify-between gap-2 py-2 text-sm" key={i.id}><span>{i.number} · {i.recipientGstin} · {i.date}</span><b>{formatINR(i.value.toFixed(2))}</b></li>)}</ul>
+      </Card>}
       <Card className="overflow-x-auto p-0">
         <CardTitle className="px-4 pt-4">Outward supplies (B2B {prep.b2b.length} · B2CL {prep.b2cl.length} · B2CS {prep.b2cs.length})</CardTitle>
         {all.length ? (

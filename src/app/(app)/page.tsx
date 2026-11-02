@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { ArrowRight, Landmark, Mic } from "lucide-react";
 import { requirePageContext } from "@/server/auth/session";
+import { readHistorical, inReturnPeriod, historicalTotals } from "@/server/services/historical-records";
 import { dashboard } from "@/server/services/dashboard";
 import { getT } from "@/lib/i18n/server";
 import { Badge, Card, CardTitle, Empty, LinkButton, PageHeader, Stat } from "@/components/ui";
@@ -22,6 +23,8 @@ export default async function DashboardPage({ searchParams }: { searchParams: Pr
   const ctx = await requirePageContext();
   const sp = await searchParams;
   const d = await dashboard(ctx, sp.period);
+  const historic = await readHistorical(ctx.businessId);
+  const imported = historicalTotals(inReturnPeriod(historic.invoices,d.period));
   const { t } = await getT(d.business.preferredLanguage);
   const months = Array.from({ length: 12 }, (_, i) => {
     const base = new Date(`${d.period.start}T00:00:00Z`);
@@ -57,6 +60,7 @@ export default async function DashboardPage({ searchParams }: { searchParams: Pr
         <Link href="/invoices?status=DRAFT"><Stat label={t("dash_drafts")} value={d.totals.draftCount} note="All open drafts" /></Link>
       </div>
 
+      <Card><CardTitle>Imported GST return history · {d.period.label}</CardTitle><p className="mt-2 text-sm">{imported.count} historical invoices · {formatINR(imported.taxable.toFixed(2))} taxable · {formatINR(imported.value.toFixed(2))} invoice value</p><p className="mt-1 text-xs text-muted">Separate from new Compte sales above; import is not proof of filing or payment.</p><Link href="/invoices" className="text-sm font-semibold text-brand-700">View historical invoices →</Link></Card>
       <div className="grid gap-5 lg:grid-cols-2">
         <Card>
           <div className="mb-3 flex items-center justify-between">
