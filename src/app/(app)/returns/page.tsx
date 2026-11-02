@@ -39,21 +39,22 @@ export default async function ReturnsPage({ searchParams }: { searchParams: Prom
                 <p className="text-lg font-bold">{r.period.label}</p>
                 <p className="text-xs text-muted">GSTN period {r.period.key} · {r.ended ? "ended" : "in progress / future"}</p>
               </div>
-              {r.issuedCount > 0 ? <Badge tone="brand">{r.issuedCount} invoice{r.issuedCount > 1 ? "s" : ""}</Badge> : <Badge>No sales recorded</Badge>}
+              {r.issuedCount + imported.count > 0 ? <Badge tone="brand">{r.issuedCount + imported.count} invoice{r.issuedCount + imported.count !== 1 ? "s" : ""} recorded</Badge> : <Badge>No sales data</Badge>}
             </div>
             <dl className="tabular mt-3 grid grid-cols-2 gap-2 text-sm">
-              <div><dt className="text-xs text-muted">Taxable value</dt><dd className="font-semibold">{formatINR(r.taxable)}</dd></div>
-              <div><dt className="text-xs text-muted">GST on sales</dt><dd className="font-semibold">{formatINR(r.tax)}</dd></div>
+              <div><dt className="text-xs text-muted">Taxable value (recorded + imported)</dt><dd className="font-semibold">{formatINR((Number(r.taxable) + imported.taxable).toFixed(2))}</dd></div>
+              <div><dt className="text-xs text-muted">GST from Compte invoices</dt><dd className="font-semibold">{formatINR(r.tax)}</dd></div>
             </dl>
-            {hasImport && <div className="mt-3 rounded-lg bg-brand-50 p-3 text-sm"><b>Historical GSTR-1 imported</b><p>{imported.count} invoices · {formatINR(imported.taxable.toFixed(2))} taxable</p><p className="text-xs">Import received; portal filing status not verified. Separate from new sales.</p></div>}
+            {hasImport && <div className="mt-3 rounded-lg bg-brand-50 p-3 text-sm"><b>Historical GSTR-1 imported</b><p>{imported.count} invoices · {formatINR(imported.taxable.toFixed(2))} taxable</p><p className="text-xs">Includes {imported.count} imported B2B invoices. Import does not verify filing or cover all GST sections. GST on imported invoices is not available from current parsed data.</p></div>}
             {(r.draftCount > 0 || r.purchaseCount > 0) && <p className="mt-2 text-xs text-warn-600">{r.draftCount > 0 && `${r.draftCount} draft(s) `}{r.purchaseCount > 0 && `${r.purchaseCount} purchase record(s)`}</p>}
             <div className="mt-3 space-y-1.5 text-sm">
-              <div className="flex items-center justify-between"><span>GSTR-1 nil</span><FilingStatusBadge status={(r.nilGstr1?.status ?? "NOT_STARTED") as FilingStatus} label={label(r.nilGstr1?.status)} demo={r.nilGstr1?.isDemo} /></div>
+              {imported.count > 0 && <p className="text-xs font-semibold text-warn-600">Non-nil sales present in imported records. Do not file a nil GSTR-1 for this period.</p>}
+              <div className="flex items-center justify-between"><span>GSTR-1 nil workflow</span><FilingStatusBadge status={(r.nilGstr1?.status ?? "NOT_STARTED") as FilingStatus} label={label(r.nilGstr1?.status)} demo={r.nilGstr1?.isDemo} /></div>
               <div className="flex items-center justify-between"><span>GSTR-3B nil</span><FilingStatusBadge status={(r.nilGstr3b?.status ?? "NOT_STARTED") as FilingStatus} label={label(r.nilGstr3b?.status)} demo={r.nilGstr3b?.isDemo} /></div>
             </div>
             <div className="mt-4 flex flex-wrap gap-2">
               <Link href={`/returns/${r.period.key}`} className="inline-flex h-10 items-center gap-1 rounded-xl bg-brand-50 px-3 text-sm font-semibold text-brand-700">{t("returns_prepare")} <ArrowRight className="size-4" /></Link>
-              {r.ended && <Link href={`/returns/${r.period.key}/nil`} className="inline-flex h-10 items-center gap-1 rounded-xl border border-line bg-white px-3 text-sm font-semibold">{t("returns_nil")}</Link>}
+              {r.ended && r.issuedCount === 0 && imported.count === 0 && <Link href={`/returns/${r.period.key}/nil`} className="inline-flex h-10 items-center gap-1 rounded-xl border border-line bg-white px-3 text-sm font-semibold">{t("returns_nil")}</Link>}
             </div>
           </Card>
         );})}
