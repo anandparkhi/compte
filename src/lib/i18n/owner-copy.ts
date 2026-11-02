@@ -4,7 +4,7 @@
  */
 const english = {
  homeTitle:"Your business at a glance",
- latestImport:"Showing your latest imported month because this month has no Compte-issued invoices. Choose another month below.",
+ latestImport:"Showing your most recent month with recorded activity. Choose another month below.",
  create:"Create an invoice", createHint:"Speak or type a sale",
  import:"Import GST history", importHint:"Bring your past business records",
  chooseMonth:"Choose a month", insights:"All-time insights", imported:"Imported",
@@ -29,7 +29,7 @@ const english = {
 };
 const hindi:typeof english = {
  homeTitle:"आपके कारोबार का संक्षिप्त हाल",
- latestImport:"इस महीने Compte में नए बिल नहीं हैं, इसलिए हाल का आयात किया गया महीना दिखाया गया है। नीचे महीना चुनें।",
+ latestImport:"पिछले दर्ज कारोबार वाला महीना दिखाया गया है। नीचे दूसरा महीना चुनें।",
  create:"नया बिल बनाएं", createHint:"बोलकर या लिखकर बिक्री दर्ज करें",
  import:"पुराना GST डेटा लाएं", importHint:"पिछले कारोबार के रिकॉर्ड जोड़ें",
  chooseMonth:"महीना चुनें", insights:"पूरे समय का विश्लेषण", imported:"आयात किया गया",
@@ -53,7 +53,7 @@ const hindi:typeof english = {
 };
 const marathi:typeof english = {
  homeTitle:"तुमच्या व्यवसायाचा थोडक्यात आढावा",
- latestImport:"या महिन्यात Compte मध्ये नवी बिले नाहीत, म्हणून शेवटचा आयात केलेला महिना दाखवला आहे. खाली महिना निवडा.",
+ latestImport:"शेवटच्या नोंदवलेल्या व्यवसायाचा महिना दाखवला आहे. खाली दुसरा महिना निवडा.",
  create:"नवीन बिल बनवा", createHint:"बोलून किंवा लिहून विक्री नोंदवा",
  import:"जुना GST डेटा आणा", importHint:"मागील व्यवसायाच्या नोंदी जोडा",
  chooseMonth:"महिना निवडा", insights:"संपूर्ण व्यवसायाचा आढावा", imported:"आयात केलेले",
