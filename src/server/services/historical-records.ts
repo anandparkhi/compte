@@ -5,13 +5,13 @@ export type HistoricalInvoice={id:string;periodKey:string;recipientGstin:string;
 export async function readHistorical(businessId:string){
  const batches=await prisma.gstHistoricalImport.findMany({where:{businessId},orderBy:{createdAt:"desc"}});
  const periods=new Set<string>(),invoices:HistoricalInvoice[]=[];
- const hsn:{hsn:string;description:string;unit:string;rate:number;taxable:number}[]=[];
+ const hsn:{hsn:string;description:string;unit:string;rate:number;taxable:number;periodKey:string}[]=[];
  for(const batch of batches){if(periods.has(batch.periodKey))continue;
-  let data:{invoices?:Omit<HistoricalInvoice,"id"|"periodKey">[];hsn?:typeof hsn};
+  let data:{invoices?:Omit<HistoricalInvoice,"id"|"periodKey">[];hsn?:Omit<(typeof hsn)[number],"periodKey">[]};
   try{data=JSON.parse(batch.records)}catch{continue}
   periods.add(batch.periodKey);
   for(const [i,row] of (data.invoices??[]).entries())if(row.number)invoices.push({...row,id:batch.id+":"+i,periodKey:batch.periodKey});
-  hsn.push(...data.hsn??[]);
+  hsn.push(...(data.hsn??[]).map(row=>({...row,periodKey:batch.periodKey})));
  }
  return {invoices,hsn,periods:[...periods]};
 }
