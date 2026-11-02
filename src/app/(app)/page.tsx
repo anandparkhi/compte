@@ -7,7 +7,7 @@ import { dashboard } from "@/server/services/dashboard";
 import { ownerCopy } from "@/lib/i18n/owner-copy";
 import { Badge, Card, CardTitle, LinkButton, PageHeader, Stat } from "@/components/ui";
 import { formatINR } from "@/lib/domain/money";
-import { parsePeriodKey, periodKeyFor } from "@/lib/domain/periods";
+import { dateOnly, parsePeriodKey, periodKeyFor } from "@/lib/domain/periods";
 
 export const dynamic = "force-dynamic";
 
@@ -48,6 +48,17 @@ export default async function DashboardPage({ searchParams }: { searchParams: Pr
     old.amount += Number(row.value); old.count++; topCustomers.set(row.recipientGstin,old);
   }
   const leaders = [...topCustomers.values()].sort((a,b)=>b.amount-a.amount).slice(0,4);
+  const trendMonths = Array.from({length:6},(_,i)=>{
+    const date=new Date(`${d.period.start}T00:00:00Z`);
+    date.setUTCMonth(date.getUTCMonth()-5+i);
+    return parsePeriodKey(periodKeyFor(date.getUTCFullYear(),date.getUTCMonth()+1),"MONTHLY");
+  });
+  const recentIssued = await prisma.invoice.findMany({where:{businessId:ctx.businessId,status:"ISSUED",invoiceDate:{gte:dateOnly(trendMonths[0].start),lt:dateOnly(d.period.endExclusive)}},select:{invoiceDate:true,taxableTotal:true}});
+  const trend=trendMonths.map(p=>({
+    key:p.key,label:p.label,
+    taxable:historicalTotals(inReturnPeriod(historic.invoices,p)).taxable+recentIssued.filter(i=>i.invoiceDate.toISOString().slice(0,10)>=p.start&&i.invoiceDate.toISOString().slice(0,10)<p.endExclusive).reduce((total,i)=>total+Number(i.taxableTotal),0)
+  }));
+  const trendMax=Math.max(1,...trend.map(x=>x.taxable));
   const hasHistory = historic.periods.length > 0;
   const hasSales = invoicesCount > 0;
   const overlaps=historic.overlapCount;
@@ -89,6 +100,17 @@ export default async function DashboardPage({ searchParams }: { searchParams: Pr
           </div>
         </Card>
       </> : <Card className="space-y-3"><CardTitle>{copy.noData} · {d.period.label}</CardTitle><p className="text-sm text-muted">{copy.noDataHint}</p><div className="flex flex-wrap gap-2"><LinkButton href="/gst-import" size="sm">{copy.import}</LinkButton><LinkButton href="/invoices/new" variant="outline" size="sm">{copy.create}</LinkButton></div></Card>}
+      {trend.some(x=>x.taxable>0)&&<Card>
+        <CardTitle>{copy.trend}</CardTitle>
+        <div className="mt-5 flex h-40 items-end gap-2 sm:gap-4" role="group" aria-label={copy.trend}>
+          {trend.map(m=><Link key={m.key} href={`/?period=${m.key}`} className="flex h-full min-w-0 flex-1 flex-col justify-end gap-2 text-center" aria-label={`${m.label}: ${formatINR(m.taxable.toFixed(2))}`}>
+            <span className="text-[10px] font-medium tabular text-muted">{m.taxable>0?formatINR(m.taxable.toFixed(0)):"—"}</span>
+            <span className={`mx-auto w-full max-w-14 rounded-t-lg ${m.key===d.period.key?"bg-[#193e32]":"bg-[#9cc6b2]"}`} style={{height:m.taxable>0?`${Math.max(8,Math.round(m.taxable/trendMax*100))}%`:"2px"}} aria-hidden="true"/>
+            <span className="text-[11px] text-muted">{m.label.split(" ")[0].slice(0,3)}</span>
+          </Link>)}
+        </div>
+        <p className="mt-3 text-xs text-muted">{copy.trendNote}</p>
+      </Card>}
       <div className="grid gap-4 lg:grid-cols-2">
         <Card>
           <div className="flex items-center justify-between gap-2"><CardTitle>{copy.returnInfo}</CardTitle><Link href="/returns" className="text-sm font-semibold text-brand-700">{copy.viewReturns} →</Link></div>
