@@ -2,7 +2,10 @@ import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
   serverExternalPackages: ["better-sqlite3", "@prisma/adapter-better-sqlite3", "pdfkit", "fontkit"],
-  outputFileTracingIncludes: { "/api/**/*": ["./assets/fonts/**/*"] },
+  outputFileTracingIncludes: {
+    "/api/**/*": ["./assets/fonts/**/*"],
+    "/api/invoices/[id]/pdf": ["./assets/fonts/**/*"],
+  },
   poweredByHeader: false,
   async headers() {
     return [
