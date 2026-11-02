@@ -30,7 +30,7 @@ function resolveFont(name: string): Buffer | null {
 }
 
 function newDoc(title: string) {
-  const doc = new PDFDocument({ size: "A4", margin: 36, info: { Title: title, Producer: brand.name, Creator: brand.name } });
+  const doc = new PDFDocument({ size: "A4", margin: 36, font: null as unknown as string, info: { Title: title, Producer: brand.name, Creator: brand.name } });
   const regular = resolveFont("NotoSansDevanagari_400Regular.ttf");
   const bold = resolveFont("NotoSansDevanagari_700Bold.ttf");
   if (!regular || !bold) throw new Error("PDF_RUNTIME_FONTS_MISSING");
@@ -216,7 +216,7 @@ export async function renderInvoicePdfFallback(s: InvoiceSnapshot, cancelled: bo
   write("Customer address:",s.recipient.billingAddress);
   write("Place of supply:",`${s.placeOfSupply.stateName} (${s.placeOfSupply.stateCode})`);
   write("Supply:",s.supplyType === "INTRA" ? "Intra-state" : "Inter-state");
-  doc.moveDown(0.6).font("Helvetica-Bold").fontSize(11).text("ITEMS");
+  doc.moveDown(0.6).font(bold).fontSize(11).text("ITEMS");
   for(const line of s.lines) {
     if(doc.y>690)doc.addPage();
     doc.moveDown(0.3);
@@ -225,7 +225,7 @@ export async function renderInvoicePdfFallback(s: InvoiceSnapshot, cancelled: bo
     doc.fontSize(8).text(`CGST: INR ${line.cgst}, SGST/UTGST: INR ${line.sgst}, IGST: INR ${line.igst}`);
   }
   if(doc.y>650)doc.addPage();
-  doc.moveDown(1).font("Helvetica-Bold").fontSize(11).text("TOTALS");
+  doc.moveDown(1).font(bold).fontSize(11).text("TOTALS");
   for(const [label,val] of [
     ["Taxable value",s.totals.taxableTotal],["CGST",s.totals.cgstTotal],["SGST/UTGST",s.totals.sgstTotal],
     ["IGST",s.totals.igstTotal],["Grand total",s.totals.grandTotal]
