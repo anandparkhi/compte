@@ -8,7 +8,7 @@ import {assertCanWrite} from "@/server/auth/ctx";
 import {AppError} from "@/server/errors";
 import {balanceFor,parseBankCsv,validateBankEntry,type BankEntry} from "@/lib/payment/reconciliation";
 export async function getPayments(ctx:Ctx,invoiceId:string){
- const invoice=await prisma.invoice.findFirst({where:{id:invoiceId,businessId:ctx.businessId,status:"ISSUED"},select:{id:true,grandTotal:true,invoiceNumber:true,customer:{select:{name:true,phone:true}}}});
+ const invoice=await prisma.invoice.findFirst({where:{id:invoiceId,businessId:ctx.businessId,status:"ISSUED"},select:{id:true,grandTotal:true,invoiceNumber:true,customerId:true,customer:{select:{name:true,phone:true}}}});
  if(!invoice)throw new AppError(404,"NOT_FOUND","Issued invoice not found");
  const payments=await prisma.invoicePayment.findMany({where:{businessId:ctx.businessId,invoiceId},orderBy:{createdAt:"desc"}});
  return {invoice,payments,balance:balanceFor(invoice.grandTotal,payments)};
