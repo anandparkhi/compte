@@ -4,6 +4,7 @@ import { useRouter } from "next/navigation";
 import { Loader2, MessageSquareText, Mic, Send, Square } from "lucide-react";
 import { Alert, Badge, Button, Card, cn, Select, Textarea } from "@/components/ui";
 import { api, errorText } from "@/lib/client-api";
+import { recordingToWav } from "@/lib/audio/wav";
 
 const EXAMPLES: { lang: string; text: string }[] = [
   { lang: "English", text: "Create a bill for Ramesh Traders for twenty boxes at five hundred rupees each, plus eighteen percent GST." },
@@ -48,22 +49,35 @@ function VoiceText({ L, uiLang, sttConfigured, llmConfigured }: { L: Labels; uiL
     if (!sttConfigured) { setNotice(L.create_stt_not_configured); return; }
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      const r = new MediaRecorder(stream);
+      // Safari records MP4/AAC; Chrome typically records WebM/Opus. Both are
+      // decoded locally and converted to WAV before sending anything to Sarvam.
+      const mimeType = typeof MediaRecorder.isTypeSupported === "function"
+        ? ["audio/mp4", "audio/webm;codecs=opus"].find((type) => MediaRecorder.isTypeSupported(type))
+        : undefined;
+      const r = new MediaRecorder(stream, mimeType ? { mimeType } : undefined);
       const chunks: Blob[] = [];
-      r.ondataavailable = (e) => chunks.push(e.data);
+      r.ondataavailable = (e) => { if (e.data.size) chunks.push(e.data); };
       r.onstop = async () => {
         stream.getTracks().forEach((t) => t.stop());
         setRecording(false);
         setBusy("stt");
         try {
+          // Browser-specific MP4/WebM MUST NOT go to the provider unchanged.
+          // Always send 16-bit mono PCM WAV at 16 kHz with the matching name.
+          const recorded = new Blob(chunks, { type: r.mimeType || chunks[0]?.type || "application/octet-stream" });
+          const wav = await recordingToWav(recorded);
           const fd = new FormData();
-          fd.append("audio", new Blob(chunks, { type: r.mimeType || "audio/webm" }), "speech.webm");
+          fd.append("audio", wav, "speech.wav");
           fd.append("language", lang);
           const res = await fetch("/api/transcribe", { method: "POST", body: fd });
           const body = await res.json();
           if (!res.ok) throw new Error(body?.error?.message ?? "Transcription failed");
           if (body.status === "NOT_CONFIGURED") setNotice(L.create_stt_not_configured);
-          else { setText(body.transcript); setFromVoice(true); }
+          else if (typeof body.transcript === "string" && body.transcript.trim()) {
+            setText(body.transcript.trim()); setFromVoice(true);
+          } else {
+            throw new Error("No speech was detected. Try recording again in a quiet place.");
+          }
         } catch (e) { setErr(errorText(e)); }
         setBusy(null);
       };

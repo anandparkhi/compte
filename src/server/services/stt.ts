@@ -21,8 +21,20 @@ export async function transcribe(audio: Blob, language: string, fetchImpl: typeo
   if (!env.sarvamApiKey) return { status: "NOT_CONFIGURED" };
   if (audio.size === 0) throw new AppError(422, "EMPTY_AUDIO", "No audio received");
   if (audio.size > MAX_AUDIO_BYTES) throw new AppError(413, "AUDIO_TOO_LARGE", "Recording is too long — keep it under 30 seconds");
+  // The browser converts Safari MP4/AAC and Chrome WebM/Opus into WAV.
+  // Validate MIME and the RIFF header; a misleading filename cannot fix the codec.
+  const mime = audio.type.split(";")[0].toLowerCase();
+  const header = new Uint8Array(await audio.slice(0, 44).arrayBuffer());
+  const tag = (offset: number, length: number) =>
+    String.fromCharCode(...header.subarray(offset, offset + length));
+  if (!["audio/wav", "audio/x-wav", "audio/wave"].includes(mime)
+      || header.length < 44 || tag(0, 4) !== "RIFF" || tag(8, 4) !== "WAVE"
+      || tag(12, 4) !== "fmt " || header[20] !== 1 || header[21] !== 0) {
+    throw new AppError(415, "AUDIO_FORMAT_UNSUPPORTED",
+      "Unsupported recording format. Refresh Compte to get the updated voice recorder, then try again.");
+  }
   const form = new FormData();
-  form.append("file", audio, "speech.webm");
+  form.append("file", audio, "speech.wav");
   form.append("model", env.sarvamModel);
   if (env.sarvamModel.startsWith("saaras")) form.append("mode", "transcribe");
   form.append("language_code", LANG_CODES[language] ?? "unknown");
