@@ -375,8 +375,9 @@ export async function listInvoices(ctx: Ctx, filter: { status?: string; customer
   return rows.map((r) => ({ ...r, invoiceDate: toDateString(r.invoiceDate) }));
 }
 
-export async function getInvoiceForDocument(ctx: Ctx, invoiceId: string) {
+export async function getInvoiceForDocument(ctx: Ctx, invoiceId: string, includeCancelled = false) {
   const inv = await prisma.invoice.findFirst({ where: { id: invoiceId, businessId: ctx.businessId } });
   if (!inv) throw notFound("Invoice");
+  if (inv.status === "CANCELLED" && !includeCancelled) throw new AppError(409,"INVOICE_CANCELLED","Cancelled invoices cannot be shared as new tax invoices.");
   return { invoice: inv, snapshot: readVerifiedSnapshot(inv) };
 }
