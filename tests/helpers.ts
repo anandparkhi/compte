@@ -1,3 +1,4 @@
+import { randomUUID } from "node:crypto";
 import { computeGstinCheckChar } from "@/lib/domain/gstin";
 import { prisma } from "@/server/db";
 import type { Ctx } from "@/server/auth/ctx";
@@ -9,11 +10,14 @@ let counter = 0;
 
 export async function makeBusiness(opts: { frequency?: "MONTHLY" | "QUARTERLY"; stateCode?: string; role?: Ctx["role"]; eInvoice?: boolean } = {}) {
   const n = ++counter;
+  const random = randomUUID().replaceAll("-", "").toUpperCase();
+  const letters = [...random.slice(0,5)].map(c => /[A-F]/.test(c) ? c : String.fromCharCode(65 + Number(c))).join("");
+  const pan = letters + String(parseInt(random.slice(5,10), 16) % 10000).padStart(4,"0") + "Z";
   const state = opts.stateCode ?? "27";
   const user = await prisma.user.create({ data: { email: `u${n}-${Date.now()}@test.example`, name: `User ${n}`, passwordHash: "x" } });
   const business = await prisma.business.create({
     data: {
-      legalName: `Test Biz ${n}`, gstin: gstin(`${state}ZZZTB${String(1000 + n).slice(-4)}Z1Z`), addressLine: "1 Test Road", city: "Pune", pincode: "411001", stateCode: state,
+      legalName: `Test Biz ${n}`, gstin: gstin(`${state}${pan}1Z`), addressLine: "1 Test Road", city: "Pune", pincode: "411001", stateCode: state,
       contactPerson: "T", phone: `90000${String(10000 + n).slice(-5)}`, email: "t@test.example", filingFrequency: opts.frequency ?? "MONTHLY", financialYear: "2026-27",
       invoicePrefix: "TB", signatoryName: "Sig", eInvoiceMandatory: !!opts.eInvoice, phoneIsGstnRegistered: "DECLARED_YES",
     },
