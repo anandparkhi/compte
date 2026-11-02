@@ -27,7 +27,7 @@ export default async function ReturnsPage({searchParams}:{searchParams:Promise<{
  const without=grouped.filter(x=>!withData.includes(x));
  return <div className="mx-auto max-w-4xl space-y-5">
   <div className="flex items-start justify-between gap-4"><div><p className="text-xs font-semibold uppercase tracking-[.12em] text-muted">GST</p><h1 className="mt-1 text-2xl font-semibold tracking-[-.05em] sm:text-3xl">{u.returnTitle}</h1><p className="mt-1 text-sm text-muted">{u.returnSubtitle}</p></div>
-   <Link href="/gst-import" className="inline-flex min-h-10 shrink-0 items-center gap-1.5 rounded-full bg-[#173e32] px-3.5 text-sm font-semibold text-white"><FileUp className="size-4"/>{u.imported}</Link>
+   <Link href="/gst-import" className="inline-flex min-h-10 shrink-0 items-center gap-1.5 rounded-full bg-[#173e32] px-3.5 text-sm font-semibold text-white"><FileUp className="size-4"/>{u.importAction}</Link>
   </div>
   <nav aria-label="Financial year" className="flex gap-2 overflow-x-auto pb-1">{options.map(year=><Link key={year} href={`/returns?fy=${year}`} aria-current={fy===year?"page":undefined} className={`shrink-0 rounded-full border px-3.5 py-2 text-sm font-semibold ${fy===year?"border-[#173e32] bg-[#173e32] text-white":"border-line bg-white"}`}>FY {year}</Link>)}</nav>
   <section className="overflow-hidden rounded-[22px] border border-line bg-white">
@@ -37,7 +37,7 @@ export default async function ReturnsPage({searchParams}:{searchParams:Promise<{
      <div className="shrink-0 text-right"><p className="tabular text-lg font-semibold tracking-tight">{formatINR(x.taxable.toFixed(2))}</p><p className="mt-0.5 text-[11px] text-muted">{u.totalTaxable}</p></div>
      <ArrowRight className="size-4 shrink-0 text-brand-700"/>
    </Link></li>)}</ul>
-   :<div className="p-5"><h3 className="font-semibold">{u.emptyPeriod}</h3><p className="mt-1 text-sm text-muted">{u.emptyExplain}</p><Link href="/gst-import" className="mt-3 inline-flex text-sm font-semibold text-brand-700">{u.imported} <ArrowRight className="ml-1 size-4"/></Link></div>}
+   :<div className="p-5"><h3 className="font-semibold">{u.emptyPeriod}</h3><p className="mt-1 text-sm text-muted">{u.emptyExplain}</p><Link href="/gst-import" className="mt-3 inline-flex text-sm font-semibold text-brand-700">{u.importAction} <ArrowRight className="ml-1 size-4"/></Link></div>}
   </section>
   {without.length>0&&<details className="group overflow-hidden rounded-2xl border border-line bg-white"><summary className="flex cursor-pointer list-none items-center justify-between p-4 font-medium">{u.otherPeriods} ({without.length})<ChevronDown className="size-4 text-muted group-open:rotate-180"/></summary><ul className="divide-y divide-line border-t border-line">{without.map(x=><li key={x.r.period.key}><Link href={`/returns/${x.r.period.key}`} className="flex items-center justify-between px-4 py-3 text-sm"><span>{x.r.period.label}</span><ArrowRight className="size-4 text-muted"/></Link></li>)}</ul></details>}
   <details className="group border-t border-line pt-3 text-sm"><summary className="flex cursor-pointer list-none items-center justify-between gap-3 py-2 text-muted">{u.returnHelp}<ChevronDown className="size-4 group-open:rotate-180"/></summary><p className="pb-2 leading-relaxed text-muted">{u.returnHelpDetail}</p></details>
