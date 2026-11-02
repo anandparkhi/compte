@@ -1,6 +1,5 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { Download, Eye } from "lucide-react";
 import { requirePageContext } from "@/server/auth/session";
 import { prisma } from "@/server/db";
 import { AppError } from "@/server/errors";
@@ -10,6 +9,7 @@ import { getT } from "@/lib/i18n/server";
 import { Badge, Card, CardTitle, LinkButton, PageHeader } from "@/components/ui";
 import { ReviewEditor } from "@/components/invoice/review-editor";
 import { InvoicePayments } from "@/components/payment/invoice-payments";
+import { InvoiceDocumentActions } from "@/components/invoice/invoice-document-actions";
 import { EmailInvoice } from "@/components/invoice/email-invoice";
 import { formatINR } from "@/lib/domain/money";
 import { formatDateIN, periodForDate, type FilingFrequency } from "@/lib/domain/periods";
@@ -49,13 +49,11 @@ export default async function InvoicePage({ params }: { params: Promise<{ id: st
       <PageHeader
         title={<span className="font-mono">{s.invoiceNumber}</span>}
         subtitle={`${s.recipient.name} · ${formatDateIN(s.invoiceDate)}`}
-        actions={<>
-          <LinkButton href={`/api/invoices/${id}/pdf`} prefetch={false}><Download className="size-4" />{t("invoice_download")}</LinkButton>
-          <LinkButton href={`/api/invoices/${id}/pdf?inline=1`} variant="outline" target="_blank" prefetch={false}><Eye className="size-4" />View</LinkButton>
-        </>}
+        actions={undefined}
       />
+      <InvoiceDocumentActions invoiceId={id} invoiceNumber={s.invoiceNumber} status={view.invoice.status} canWrite={ctx.role !== "VIEWER"} />
       <div className="flex flex-wrap gap-2">
-        <Badge tone="brand">{t("status_ISSUED")}</Badge>
+        <Badge tone={view.invoice.status === "CANCELLED" ? "warn" : "brand"}>{view.invoice.status === "CANCELLED" ? "Cancelled" : t("status_ISSUED")}</Badge>
         <Badge>{intra ? "Intra-state · CGST + " + s.stateTaxLabel : "Inter-state · IGST"}</Badge>
         <Badge>Place of supply: {s.placeOfSupply.stateName} ({s.placeOfSupply.stateCode})</Badge>
         {s.isDemo && <Badge tone="demo">DEMO DATA</Badge>}
@@ -84,16 +82,16 @@ export default async function InvoicePage({ params }: { params: Promise<{ id: st
           <div className="flex justify-between border-t border-line pt-2 text-base font-bold"><dt>Grand total</dt><dd>{formatINR(s.totals.grandTotal)}</dd></div>
         </dl>
       </Card>
-      <InvoicePayments invoiceId={id} canWrite={ctx.role !== "VIEWER"} />
+      {view.invoice.status === "ISSUED" && <InvoicePayments invoiceId={id} canWrite={ctx.role !== "VIEWER"} />}
       <div className="grid gap-4 md:grid-cols-2">
         <Card>
           <CardTitle className="mb-2">Books & returns</CardTitle>
-          <p className="text-sm text-muted">Recorded in the sales ledger and included in GSTR-1 preparation for <b className="text-ink">{period.label}</b>.</p>
+          <p className="text-sm text-muted">{view.invoice.status === "CANCELLED" ? "This invoice was cancelled and excluded from active sales and return preparation, but its original record remains in the audit ledger." : <>Recorded in the sales ledger and included in GSTR-1 preparation for <b className="text-ink">{period.label}</b>.</>}</p>
           <Link className="mt-2 inline-block text-sm font-semibold text-brand-700" href={`/returns/${period.key}`}>Open {period.label} return preparation →</Link>
           <p className="mt-3 text-xs text-muted">Issued values are locked. Integrity hash: <span className="font-mono">{view.invoice.snapshotHash?.slice(0, 16)}…</span></p>
         </Card>
-        <EmailInvoice invoiceId={id} defaultTo={(await prisma.customer.findFirst({ where: { id: view.invoice.customerId ?? "", businessId: ctx.businessId } }))?.email ?? ""} label={t("invoice_email")}
-          history={view.emails.map((e) => ({ id: e.id, to: e.toAddress, status: e.status, at: e.createdAt.toISOString() }))} />
+        {view.invoice.status === "ISSUED" && <EmailInvoice invoiceId={id} defaultTo={(await prisma.customer.findFirst({ where: { id: view.invoice.customerId ?? "", businessId: ctx.businessId } }))?.email ?? ""} label={t("invoice_email")}
+          history={view.emails.map((e) => ({ id: e.id, to: e.toAddress, status: e.status, at: e.createdAt.toISOString() }))} />}
       </div>
     </div>
   );
