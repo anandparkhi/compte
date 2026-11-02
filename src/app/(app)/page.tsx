@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { ArrowRight, FileInput, Landmark, Mic, ReceiptText, TrendingUp, Users } from "lucide-react";
 import { requirePageContext } from "@/server/auth/session";
+import { prisma } from "@/server/db";
 import { readHistorical, inReturnPeriod, historicalTotals } from "@/server/services/historical-records";
 import { dashboard } from "@/server/services/dashboard";
 import { ownerCopy } from "@/lib/i18n/owner-copy";
@@ -17,13 +18,16 @@ export default async function DashboardPage({ searchParams }: { searchParams: Pr
   const ctx = await requirePageContext();
   const sp = await searchParams;
   const historic = await readHistorical(ctx.businessId);
-  const mostRecentImport = [...historic.activityMonths].sort((a, b) => position(b) - position(a))[0];
+  const mostRecentImport = [...historic.activityMonths].sort((a,b)=>position(b)-position(a))[0];
+  const newestIssued = await prisma.invoice.findFirst({where:{businessId:ctx.businessId,status:"ISSUED"},select:{invoiceDate:true},orderBy:{invoiceDate:"desc"}});
+  const issuedMonth = newestIssued ? periodKeyFor(newestIssued.invoiceDate.getUTCFullYear(),newestIssued.invoiceDate.getUTCMonth()+1) : undefined;
+  const mostRecentActivity = [mostRecentImport,issuedMonth].filter((v):v is string=>!!v).sort((a,b)=>position(b)-position(a))[0];
   const requested = validKey(sp.period);
   let d = await dashboard(ctx, requested ?? undefined);
   // First-time businesses should see their actual imported history, not an empty current month.
   const currentHasImports = inReturnPeriod(historic.invoices, d.period).length > 0;
-  const showingLatestImport = !requested && mostRecentImport && !currentHasImports && d.totals.issuedCount === 0;
-  if (showingLatestImport) d = await dashboard(ctx, mostRecentImport);
+  const showingLatestImport = !requested && !!mostRecentActivity && mostRecentActivity!==d.period.key && !currentHasImports && d.totals.issuedCount === 0;
+  if (showingLatestImport) d = await dashboard(ctx, mostRecentActivity);
 
   const importedRows = inReturnPeriod(historic.invoices, d.period);
   const imported = historicalTotals(importedRows);
