@@ -34,3 +34,5 @@ jobs:
       - run: npx prisma migrate deploy
       - run: npm test
       - run: npm run build
+      - name: Verify PDF fonts are included in the serverless bundle
+        run: node scripts/check-pdf-trace.mjs
