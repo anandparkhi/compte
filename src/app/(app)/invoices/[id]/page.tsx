@@ -84,7 +84,7 @@ export default async function InvoicePage({ params }: { params: Promise<{ id: st
           <div className="flex justify-between border-t border-line pt-2 text-base font-bold"><dt>Grand total</dt><dd>{formatINR(s.totals.grandTotal)}</dd></div>
         </dl>
       </Card>
-      <InvoicePayments invoiceId={id} />
+      <InvoicePayments invoiceId={id} canWrite={ctx.role !== "VIEWER"} />
       <div className="grid gap-4 md:grid-cols-2">
         <Card>
           <CardTitle className="mb-2">Books & returns</CardTitle>

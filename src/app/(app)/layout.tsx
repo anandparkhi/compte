@@ -15,7 +15,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   const ctx = await requirePageContext();
   const business = await prisma.business.findUniqueOrThrow({ where: { id: ctx.businessId } });
   const { lang, t } = await getT(business.preferredLanguage);
-  const labels: NavLabels = { dashboard: t("nav_dashboard"), create: t("nav_create"), invoices: t("nav_invoices"), customers: t("nav_customers"), products: t("nav_products"), returns: t("nav_returns"), settings: t("nav_settings") };
+  const labels: NavLabels = { dashboard: t("nav_dashboard"), create: t("nav_create"), createShort: t("nav_new"), invoices: t("nav_invoices"), customers: t("nav_customers"), products: t("nav_products"), returns: t("nav_returns"), settings: t("nav_settings") };
   const showDemo = env.demoMode || business.isDemo;
   return (
     <div className="min-h-dvh">

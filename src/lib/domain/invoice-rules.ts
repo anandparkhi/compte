@@ -26,6 +26,7 @@ export interface RuleCustomer {
   stateCode: string;
 }
 export interface RuleProduct {
+  taxSource?: string;
   id: string;
   name: string;
   kind: string;
@@ -108,6 +109,7 @@ export function computeDraft(
     const hsnSac = product?.hsnSac ?? "";
     const unit = product?.unit ?? "";
     if (product) {
+      if (product.taxSource === "HISTORICAL_IMPORT_UNVERIFIED") B("IMPORTED_PRODUCT_UNVERIFIED", `Item ${n}: this product was suggested from an old GST return. Review and confirm its HSN/SAC, tax rate and price in Products before issuing.`, n);
       const hsnErr = validateHsnSac(product.hsnSac, product.kind as "GOODS" | "SERVICES");
       if (hsnErr) B("HSN_INVALID", `Item ${n}: ${hsnErr} (fix it on the product).`, n);
       if (l.gstRate && l.gstRate !== product.gstRate) W("RATE_DIFFERS_FROM_PRODUCT", `Item ${n}: GST rate ${l.gstRate}% differs from the product's configured ${product.gstRate}%. Make sure ${l.gstRate}% is correct for HSN ${product.hsnSac}.`, n);

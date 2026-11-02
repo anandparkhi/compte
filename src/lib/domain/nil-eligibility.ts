@@ -213,6 +213,7 @@ export function questionsFor(returnType: NilReturnType, frequency: "MONTHLY" | "
 
 export interface LocalEvidence {
   issuedInvoiceCount: number;
+  historicalImportCount?: number;
   draftInvoiceCount: number;
   inwardSupplyCount: number;
   reverseChargeInwardCount: number;
@@ -277,6 +278,12 @@ export function assessNilEligibility(input: EligibilityInput): EligibilityResult
   });
 
   // --- Local ledger evidence (cannot be overridden by a declaration) ---
+  checks.push({
+    id: "local_imported_outward_supplies", label: "Historical GST data imported for this period", source: "COMPTE_LEDGER",
+    result: (local.historicalImportCount ?? 0) > 0 ? "FAIL" : "PASS",
+    detail: (local.historicalImportCount ?? 0) > 0 ? "An imported GSTR-1 record indicates outward activity; review it before considering a nil return." : "No historical return data imported for this period (not proof of nil activity).",
+  });
+
   checks.push({
     id: "local_issued_invoices", label: "Invoices issued in Compte for this period", source: "COMPTE_LEDGER",
     result: local.issuedInvoiceCount > 0 ? "FAIL" : "PASS",

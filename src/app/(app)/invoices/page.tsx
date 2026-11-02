@@ -1,7 +1,8 @@
 import Link from "next/link";
-import { Plus } from "lucide-react";
+import { ArrowRight, FileInput, Plus, Search } from "lucide-react";
 import { requirePageContext } from "@/server/auth/session";
 import { prisma } from "@/server/db";
+import { invoiceMonthKey } from "@/lib/gst-import/invoice-month";
 import { parsePeriodKey } from "@/lib/domain/periods";
 import { readHistorical } from "@/server/services/historical-records";
 import { listInvoices } from "@/server/services/invoices";
@@ -9,61 +10,48 @@ import { listCustomers } from "@/server/services/catalog";
 import { getT } from "@/lib/i18n/server";
 import { Badge, Card, Empty, LinkButton, PageHeader } from "@/components/ui";
 import { formatINR } from "@/lib/domain/money";
-import { formatDateIN } from "@/lib/domain/periods";
 
 export const dynamic = "force-dynamic";
+const invoiceDate = (d:string) => /^\d{2}-\d{2}-\d{4}$/.test(d)?d.slice(6)+"-"+d.slice(3,5)+"-"+d.slice(0,2):d;
+const validMonth = (key?:string) => {try{if(!key)return null;return parsePeriodKey(key,"MONTHLY");}catch{return null;}};
+type Tab = "ALL"|"IMPORTED"|"ISSUED"|"DRAFT";
 
-export default async function InvoicesPage({ searchParams }: { searchParams: Promise<{ status?: string; customer?: string; period?: string }> }) {
-  const ctx = await requirePageContext();
-  const sp = await searchParams;
-  const b = await prisma.business.findUniqueOrThrow({ where: { id: ctx.businessId } });
-  const { t } = await getT(b.preferredLanguage);
-  const selectedPeriod = sp.period && /^\d{6}$/.test(sp.period) ? sp.period : undefined;
-  const status = sp.status === "DRAFT" || sp.status === "ISSUED" ? sp.status : undefined;
-  const [rows, customers, historical] = await Promise.all([listInvoices(ctx, { status, customerId: sp.customer }), listCustomers(ctx), readHistorical(ctx.businessId)]);
-  const visibleHistorical = selectedPeriod ? historical.invoices.filter(i => i.periodKey === selectedPeriod) : historical.invoices;
-  const visibleRows = selectedPeriod ? rows.filter(i => { const date=i.invoiceDate.toISOString().slice(0,10); try { const p=parsePeriodKey(selectedPeriod,"MONTHLY"); return date>=p.start && date<p.endExclusive; } catch { return false; } }) : rows;
-  const q = (s?: string, c?: string) => { const p = new URLSearchParams(); if(selectedPeriod)p.set("period",selectedPeriod); if (s) p.set("status", s); if (c) p.set("customer", c); const str = p.toString(); return `/invoices${str ? `?${str}` : ""}`; };
-  return (
-    <div className="mx-auto max-w-5xl space-y-4">
-      <PageHeader title={t("invoices_title")} subtitle="Sales ledger — every issued invoice, newest first." actions={<LinkButton href="/invoices/new"><Plus className="size-4" />{t("nav_create")}</LinkButton>} />
-      <div className="flex flex-wrap gap-2">
-        {[{ k: undefined, l: "All" }, { k: "ISSUED", l: t("status_ISSUED") }, { k: "DRAFT", l: t("status_DRAFT") }].map((f) => (
-          <Link key={f.l} href={q(f.k, sp.customer)} className={`rounded-full px-3 py-1.5 text-sm font-medium ${status === f.k ? "bg-ink text-white" : "bg-white ring-1 ring-line"}`}>{f.l}</Link>
-        ))}
-        <span className="mx-1 w-px bg-line" />
-        {customers.map((c) => (
-          <Link key={c.id} href={q(status, sp.customer === c.id ? undefined : c.id)} className={`rounded-full px-3 py-1.5 text-sm font-medium ${sp.customer === c.id ? "bg-brand-600 text-white" : "bg-white ring-1 ring-line"}`}>{c.name}</Link>
-        ))}
-      </div>
-      {selectedPeriod && <p className="text-sm text-muted">Showing invoice activity for GST month {selectedPeriod}. <Link href="/invoices" className="font-semibold text-brand-700">Clear month filter</Link></p>}
-      {(!status || status === "ISSUED") && !sp.customer && <Card>
-        <h2 className="mb-2 font-semibold">Historical invoices from GST imports</h2>
-        <p className="mb-3 text-xs text-muted">Read-only evidence, not newly issued invoices. Amounts are not counted twice.</p>
-        {visibleHistorical.length ? <ul className="divide-y divide-line">{visibleHistorical.map(i=><li key={i.id} className="flex flex-wrap justify-between gap-2 py-2 text-sm"><div><b>{i.number}</b> · {i.date} · GSTIN {i.recipientGstin}<p className="text-xs text-muted">Imported · period {i.periodKey}</p></div><b>{formatINR(i.value.toFixed(2))}</b></li>)}</ul> : <p className="text-sm text-muted">No imported invoices yet.</p>}
-      </Card>}
-      {visibleRows.length === 0 ? <Empty>No invoices match.</Empty> : (
-        <Card className="p-0">
-          <ul className="divide-y divide-line">
-            {visibleRows.map((r) => (
-              <li key={r.id}>
-                <Link href={`/invoices/${r.id}`} className="flex items-center justify-between gap-3 px-4 py-3 hover:bg-canvas">
-                  <div className="min-w-0">
-                    <p className="truncate font-semibold">{r.customer?.name ?? "No customer yet"}</p>
-                    <p className="text-xs text-muted">
-                      {r.invoiceNumber ? <span className="font-mono">{r.invoiceNumber}</span> : "Draft"} · {formatDateIN(r.invoiceDate)} · {r.source.toLowerCase()}
-                    </p>
-                  </div>
-                  <div className="shrink-0 text-right">
-                    <p className="tabular font-semibold">{formatINR(r.grandTotal)}</p>
-                    <Badge tone={r.status === "ISSUED" ? "brand" : "warn"}>{r.status === "ISSUED" ? t("status_ISSUED") : t("status_DRAFT")}</Badge>
-                  </div>
-                </Link>
-              </li>
-            ))}
-          </ul>
-        </Card>
-      )}
-    </div>
-  );
+export default async function InvoicesPage({ searchParams }: { searchParams: Promise<{ status?: string; customer?: string; period?: string; tab?: string }> }) {
+ const ctx=await requirePageContext();
+ const sp=await searchParams;
+ const b=await prisma.business.findUniqueOrThrow({where:{id:ctx.businessId}});
+ const {t}=await getT(b.preferredLanguage);
+ const month=validMonth(sp.period);
+ const tab:Tab=sp.tab==="IMPORTED"||sp.tab==="ISSUED"||sp.tab==="DRAFT"?sp.tab:sp.status==="DRAFT"?"DRAFT":sp.status==="ISSUED"?"ISSUED":"ALL";
+ const [rows,customers,historical]=await Promise.all([listInvoices(ctx),listCustomers(ctx),readHistorical(ctx.businessId)]);
+ const selectedCustomer=customers.find(c=>c.id===sp.customer);
+ const newRows=rows.filter(i=>(!month||i.invoiceDate>=month.start&&i.invoiceDate<month.endExclusive)&&(!selectedCustomer||i.customerId===selectedCustomer.id));
+ const oldRows=historical.invoices.filter(i=>(!month||invoiceMonthKey(i.date,i.periodKey)===month.key)&&(!selectedCustomer||!!selectedCustomer.gstin&&i.recipientGstin===selectedCustomer.gstin));
+ const links=(which:Tab,c?:string)=>{const q=new URLSearchParams();if(which!=="ALL")q.set("tab",which);if(month)q.set("period",month.key);if(c)q.set("customer",c);return "/invoices"+(q.size?"?"+q.toString():"");};
+ const items=[
+  ...newRows.filter(i=>tab==="ALL"||tab==="DRAFT"&&i.status==="DRAFT"||tab==="ISSUED"&&i.status==="ISSUED").map(i=>({id:i.id,date:i.invoiceDate,number:i.invoiceNumber??"Draft invoice",recipient:i.customer?.name??"Customer not selected",amount:i.grandTotal,kind:i.status==="DRAFT"?"DRAFT":"ISSUED",href:`/invoices/${i.id}`})),
+  ...(tab==="ALL"||tab==="IMPORTED"?oldRows.map(i=>({id:i.id,date:invoiceDate(i.date),number:i.number,recipient:i.recipientGstin,amount:i.value.toFixed(2),kind:"IMPORTED",href:`/invoices/imported/${i.id.replace(":","/")}`})) : [])
+ ].sort((a,b)=>b.date.localeCompare(a.date));
+ return <div className="mx-auto max-w-5xl space-y-5">
+  <PageHeader title={t("invoices_title")} subtitle="One place for new invoices and imported historical records" actions={<LinkButton href="/invoices/new"><Plus className="size-4"/>{t("nav_create")}</LinkButton>}/>
+  <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+   <Card className="p-3 sm:p-4"><p className="text-xs text-muted">Issued in Compte</p><p className="mt-1 text-xl font-bold">{newRows.filter(i=>i.status==="ISSUED").length}</p></Card>
+   <Card className="p-3 sm:p-4"><p className="text-xs text-muted">Imported history</p><p className="mt-1 text-xl font-bold">{oldRows.length}</p></Card>
+   <Card className="col-span-2 p-3 sm:col-span-1 sm:p-4"><p className="text-xs text-muted">Unfinished drafts</p><p className="mt-1 text-xl font-bold">{newRows.filter(i=>i.status==="DRAFT").length}</p></Card>
+  </div>
+  <nav aria-label="Invoice type" className="flex gap-2 overflow-x-auto pb-1">
+   {([{k:"ALL",name:"All invoices"},{k:"IMPORTED",name:"Imported"},{k:"ISSUED",name:"Issued in Compte"},{k:"DRAFT",name:"Drafts"}] as const).map(x=><Link key={x.k} aria-current={tab===x.k?"page":undefined} href={links(x.k,sp.customer)} className={`shrink-0 rounded-full px-4 py-2 text-sm font-semibold ${tab===x.k?"bg-[#193e32] text-white":"bg-white ring-1 ring-line"}`}>{x.name}</Link>)}
+  </nav>
+  <div className="flex flex-wrap items-center gap-3 text-sm">
+   {month&&<span className="rounded-lg bg-brand-50 px-3 py-2 font-medium">{month.label} <Link href="/invoices" className="ml-2 text-brand-700 underline">Clear</Link></span>}
+   {selectedCustomer&&<span className="rounded-lg bg-brand-50 px-3 py-2">Customer: {selectedCustomer.name} <Link href={links(tab)} className="ml-2 text-brand-700 underline">Clear</Link></span>}
+   <details className="min-w-0 rounded-lg border border-line bg-white px-3 py-2"><summary className="cursor-pointer font-medium"><Search className="mr-1 inline size-4"/>Filter by customer</summary><div className="mt-2 flex max-h-48 flex-col gap-1 overflow-auto">{customers.map(c=><Link key={c.id} href={links(tab,c.id)} className="rounded px-2 py-1.5 hover:bg-canvas">{c.name}</Link>)}</div></details>
+  </div>
+  <Card className="p-0">
+   <div className="flex items-center justify-between border-b border-line px-4 py-3"><h2 className="font-semibold">{items.length} record{items.length!==1?"s":""}</h2><span className="text-xs text-muted">Newest first</span></div>
+   {items.length?<ul className="divide-y divide-line">{items.map(i=><li key={i.kind+":"+i.id}><Link href={i.href} className="flex items-center justify-between gap-3 px-4 py-3.5 hover:bg-canvas"><div className="min-w-0 space-y-1"><p className="truncate font-semibold">{i.recipient}</p><p className="text-xs text-muted">{i.number} · {i.date}</p><Badge tone={i.kind==="IMPORTED"?"info":i.kind==="DRAFT"?"warn":"brand"}>{i.kind==="IMPORTED"?"Imported · read-only":i.kind==="DRAFT"?"Draft":"Issued in Compte"}</Badge></div><div className="flex shrink-0 items-center gap-2"><b className="tabular text-sm">{formatINR(i.amount)}</b><ArrowRight className="size-4 text-brand-700"/></div></Link></li>)}</ul>
+   : <div className="space-y-3 p-6"><Empty>No invoices match this view. An empty list does not mean you had no sales.</Empty><Link href="/gst-import" className="inline-flex items-center gap-2 text-sm font-semibold text-brand-700"><FileInput className="size-4"/>Import historical invoices →</Link></div>}
+  </Card>
+  <p className="text-xs text-muted">Imported invoices are read-only records extracted from GST return files. They are not newly issued, verified as filed or confirmed paid. Review duplicates when combining imported and new figures.</p>
+ </div>;
 }

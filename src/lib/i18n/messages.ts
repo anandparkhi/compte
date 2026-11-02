@@ -9,6 +9,7 @@ export const LANG_LABEL: Record<UiLang, string> = { en: "English", hi: "हि�
 const en = {
   nav_dashboard: "Home",
   nav_create: "Create invoice",
+  nav_new: "New",
   nav_invoices: "Invoices",
   nav_customers: "Customers",
   nav_products: "Products",
@@ -131,6 +132,7 @@ export type MessageKey = keyof typeof en;
 const hi: Partial<Record<MessageKey, string>> = {
   nav_dashboard: "होम",
   nav_create: "बिल बनाएं",
+  nav_new: "नया",
   nav_invoices: "बिल",
   nav_customers: "ग्राहक",
   nav_products: "सामान",
@@ -244,6 +246,7 @@ const hi: Partial<Record<MessageKey, string>> = {
 const mr: Partial<Record<MessageKey, string>> = {
   nav_dashboard: "होम",
   nav_create: "बिल तयार करा",
+  nav_new: "नवीन",
   nav_invoices: "बिले",
   nav_customers: "ग्राहक",
   nav_products: "माल",

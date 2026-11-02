@@ -1,41 +1,44 @@
 import Link from "next/link";
-import { Package, Users, FileInput, Landmark } from "lucide-react";
+import { ArrowRight, FileInput, Landmark, Package, TrendingUp, Users } from "lucide-react";
 import { requirePageContext } from "@/server/auth/session";
 import { getBusiness } from "@/server/services/business";
 import { prisma } from "@/server/db";
-import { Card, CardTitle, PageHeader } from "@/components/ui";
+import { Card, PageHeader } from "@/components/ui";
 import { BusinessForm } from "@/components/forms/business-form";
 
 export const dynamic = "force-dynamic";
-export default async function SettingsPage() {
-  const ctx = await requirePageContext();
-  const b = await getBusiness(ctx);
-  const seq = await prisma.invoiceNumberSequence.findMany({ where: { businessId: ctx.businessId }, orderBy: { financialYear: "desc" } });
-  return (
-    <div className="mx-auto max-w-4xl space-y-4">
-      <PageHeader title="Settings" subtitle="Manage your business, imports and preferences" />
-      <div className="grid gap-3 sm:grid-cols-2">
-        <Link href="/customers"><Card className="flex items-center gap-3 hover:bg-canvas"><Users className="size-6 text-brand-600" /><div><p className="font-semibold">Customers</p><p className="text-xs text-muted">Names, GSTINs, delivery states</p></div></Card></Link>
-        <Link href="/products"><Card className="flex items-center gap-3 hover:bg-canvas"><Package className="size-6 text-brand-600" /><div><p className="font-semibold">Products & tax settings</p><p className="text-xs text-muted">HSN/SAC, GST rates, units</p></div></Card></Link>
-        <Link href="/gst-history"><Card className="flex items-center gap-3 hover:bg-canvas"><FileInput className="size-6 text-brand-600" /><div><p className="font-semibold">Historical GST dashboard</p><p className="text-xs text-muted">Plain-language summaries in English, Hindi and Marathi</p></div></Card></Link>
-        <Link href="/bank-reconciliation"><Card className="flex items-center gap-3 hover:bg-canvas"><Landmark className="size-6 text-brand-600" /><div><p className="font-semibold">Bank / UPI reconciliation</p><p className="text-xs text-muted">Upload statements and confirm invoice payments</p></div></Card></Link>
-        <Link href="/gst-import"><Card className="flex items-center gap-3 hover:bg-canvas"><FileInput className="size-6 text-brand-600" /><div><p className="font-semibold">Import GST returns</p><p className="text-xs text-muted">Historical invoices, customer GSTINs and HSN data</p></div></Card></Link>
-      </div>
-      <Card>
-        <CardTitle className="mb-2">Invoice series</CardTitle>
-        <ul className="text-sm">{seq.map((s) => <li key={s.id}>FY {s.financialYear}: prefix <span className="font-mono">{s.prefix}</span>, next serial {s.nextNumber}</li>)}</ul>
-        <p className="mt-2 text-xs text-muted">Numbers are consecutive, unique per financial year and at most 16 characters (CGST Rule 46(b)). Changing the prefix applies from the next financial year.</p>
-      </Card>
-      <Card>
-        <CardTitle className="mb-2">Security</CardTitle>
-        <ul className="list-disc space-y-1 pl-5 text-sm text-muted">
-          <li>GSTIN status: <b className="text-ink">{b.gstinVerificationStatus === "LIVE_VERIFIED" ? "Live verified" : "Format valid — not live-verified"}</b></li>
-          <li>Compte never stores GST portal passwords or GSTN SMS verification codes.</li>
-          <li>Issued invoices are locked at application and database level; every change is audit-logged.</li>
-          <li>Voice recordings are transcribed in memory and not stored.</li>
-        </ul>
-      </Card>
-      <BusinessForm mode="settings" initial={{ ...b, tradeName: b.tradeName ?? "", registrationType: b.registrationType as "REGULAR", filingFrequency: b.filingFrequency as "MONTHLY", preferredLanguage: b.preferredLanguage as "en", phoneIsGstnRegistered: b.phoneIsGstnRegistered as "UNKNOWN" }} />
-    </div>
-  );
+const items=[
+ {href:"/customers",icon:Users,title:"Customers",detail:"Customer details and GSTINs"},
+ {href:"/products",icon:Package,title:"Products & services",detail:"Prices, HSN/SAC and GST rates"},
+ {href:"/gst-import",icon:FileInput,title:"Import GST history",detail:"Bring past invoices, customers and HSN data"},
+ {href:"/gst-history",icon:TrendingUp,title:"Business insights",detail:"Understand past sales in your language"},
+ {href:"/bank-reconciliation",icon:Landmark,title:"Bank / UPI matching",detail:"Check incoming payments against invoices"},
+] as const;
+
+export default async function SettingsPage(){
+ const ctx=await requirePageContext();
+ const [business,seq]=await Promise.all([
+  getBusiness(ctx),
+  prisma.invoiceNumberSequence.findMany({where:{businessId:ctx.businessId},orderBy:{financialYear:"desc"}})
+ ]);
+ return <div className="mx-auto max-w-4xl space-y-6">
+  <PageHeader title="Settings" subtitle="Manage your business and records. No technical setup required."/>
+  <section className="space-y-3"><h2 className="text-lg font-semibold">Business tools</h2>
+   <div className="grid gap-3 sm:grid-cols-2">{items.map(item=><Link key={item.href} href={item.href} className="group">
+    <Card className="flex h-full items-start gap-3 p-4 transition-colors group-hover:bg-canvas">
+      <div className="rounded-xl bg-brand-50 p-2.5"><item.icon className="size-5 text-brand-700"/></div>
+      <div className="min-w-0 flex-1"><h3 className="font-semibold">{item.title}</h3><p className="mt-1 text-xs text-muted">{item.detail}</p></div><ArrowRight className="size-4 text-brand-700"/>
+    </Card>
+   </Link>)}</div>
+  </section>
+  <section className="space-y-2"><h2 className="text-lg font-semibold">Business profile & language</h2><p className="text-sm text-muted">Update your registered business details, filing frequency and preferred language below.</p>
+   <BusinessForm mode="settings" initial={{...business,tradeName:business.tradeName??"",registrationType:business.registrationType as "REGULAR",filingFrequency:business.filingFrequency as "MONTHLY",preferredLanguage:business.preferredLanguage as "en",phoneIsGstnRegistered:business.phoneIsGstnRegistered as "UNKNOWN"}}/>
+  </section>
+  <details className="rounded-xl border border-line bg-white p-4"><summary className="cursor-pointer font-semibold">Invoice numbering & compliance details</summary>
+   <h3 className="mt-4 text-sm font-semibold">Invoice sequence</h3><ul className="mt-2 space-y-1 text-sm">{seq.map(v=><li key={v.id}>FY {v.financialYear} · {v.prefix} · next number {v.nextNumber}</li>)}</ul>
+   <p className="mt-2 text-xs text-muted">Invoice numbers follow a financial-year series. Previously issued invoices cannot be changed.</p>
+   <h3 className="mt-4 text-sm font-semibold">GST verification</h3><p className="mt-1 text-sm">{business.gstinVerificationStatus==="LIVE_VERIFIED"?"GSTIN verified with authorized source":"GSTIN format checked; live registration not verified."}</p>
+   <p className="mt-2 text-xs text-muted">Compte never asks for your GST portal password or GST verification SMS codes. Filing and payment information must be verified separately.</p>
+  </details>
+ </div>;
 }

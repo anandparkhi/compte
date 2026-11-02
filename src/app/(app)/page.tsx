@@ -1,124 +1,109 @@
 import Link from "next/link";
-import { ArrowRight, Landmark, Mic } from "lucide-react";
+import { ArrowRight, FileInput, Landmark, Mic, ReceiptText, TrendingUp, Users } from "lucide-react";
 import { requirePageContext } from "@/server/auth/session";
+import { prisma } from "@/server/db";
 import { readHistorical, inReturnPeriod, historicalTotals } from "@/server/services/historical-records";
 import { dashboard } from "@/server/services/dashboard";
-import { getT } from "@/lib/i18n/server";
-import { Badge, Card, CardTitle, Empty, LinkButton, PageHeader, Stat } from "@/components/ui";
+import { ownerCopy } from "@/lib/i18n/owner-copy";
+import { Badge, Card, CardTitle, LinkButton, PageHeader, Stat } from "@/components/ui";
 import { formatINR } from "@/lib/domain/money";
 import { parsePeriodKey, periodKeyFor } from "@/lib/domain/periods";
-import { FilingStatusBadge } from "@/components/filing-status-badge";
-import type { FilingStatus } from "@/lib/domain/filing-state";
 
 export const dynamic = "force-dynamic";
 
-const ACTION_LABEL: Record<string, string> = {
-  INVOICE_ISSUED: "Invoice issued", INVOICE_DRAFT_CREATED: "Draft created", INVOICE_DRAFT_UPDATED: "Draft edited", INVOICE_DRAFT_DISCARDED: "Draft discarded",
-  CUSTOMER_CREATED: "Customer added", PRODUCT_CREATED: "Product added", PRODUCT_UPDATED: "Product tax settings changed", NIL_FILING_STATUS: "Nil filing updated",
-  NIL_FILING_CREATED: "Nil filing started", INVOICE_EMAILED: "Invoice emailed", INVOICE_EMAIL_NOT_SENT: "Email not sent (provider not configured)", GSTR1_INTERNAL_DRAFT_EXPORTED: "GSTR-1 internal draft exported",
-  SMS_DRAFT_CREATED: "Draft from SMS", BUSINESS_ONBOARDED: "Business set up", BUSINESS_UPDATED: "Business details updated",
-};
+const position = (key: string) => Number(key.slice(2)) * 12 + Number(key.slice(0, 2));
+const validKey = (key?: string) => { try { if (!key) return null; parsePeriodKey(key, "MONTHLY"); return key; } catch { return null; } };
 
 export default async function DashboardPage({ searchParams }: { searchParams: Promise<{ period?: string }> }) {
   const ctx = await requirePageContext();
   const sp = await searchParams;
-  const d = await dashboard(ctx, sp.period);
   const historic = await readHistorical(ctx.businessId);
-  const importedRows = inReturnPeriod(historic.invoices,d.period);
+  const mostRecentImport = [...historic.activityMonths].sort((a,b)=>position(b)-position(a))[0];
+  const newestIssued = await prisma.invoice.findFirst({where:{businessId:ctx.businessId,status:"ISSUED"},select:{invoiceDate:true},orderBy:{invoiceDate:"desc"}});
+  const issuedMonth = newestIssued ? periodKeyFor(newestIssued.invoiceDate.getUTCFullYear(),newestIssued.invoiceDate.getUTCMonth()+1) : undefined;
+  const mostRecentActivity = [mostRecentImport,issuedMonth].filter((v):v is string=>!!v).sort((a,b)=>position(b)-position(a))[0];
+  const requested = validKey(sp.period);
+  let d = await dashboard(ctx, requested ?? undefined);
+  // First-time businesses should see their actual imported history, not an empty current month.
+  const currentHasImports = inReturnPeriod(historic.invoices, d.period).length > 0;
+  const showingLatestImport = !requested && !!mostRecentActivity && mostRecentActivity!==d.period.key && !currentHasImports && d.totals.issuedCount === 0;
+  if (showingLatestImport) d = await dashboard(ctx, mostRecentActivity);
+
+  const importedRows = inReturnPeriod(historic.invoices, d.period);
   const imported = historicalTotals(importedRows);
+  const buyers = new Set([...d.buyerKeys,...importedRows.map(i=>i.recipientGstin)]).size;
+  const copy = ownerCopy(d.business.preferredLanguage);
   const combinedTaxable = (Number(d.totals.taxable) + imported.taxable).toFixed(2);
   const combinedValue = (Number(d.totals.invoiceValue) + imported.value).toFixed(2);
-  const { t } = await getT(d.business.preferredLanguage);
-  const months = Array.from({ length: 12 }, (_, i) => {
+  const invoicesCount = d.totals.issuedCount + imported.count;
+  const months = Array.from({ length: 7 }, (_, i) => {
     const base = new Date(`${d.period.start}T00:00:00Z`);
-    base.setUTCMonth(base.getUTCMonth() - 5 + i);
+    base.setUTCMonth(base.getUTCMonth() - 3 + i);
     return parsePeriodKey(periodKeyFor(base.getUTCFullYear(), base.getUTCMonth() + 1), "MONTHLY");
   });
-  const lastKey = d.lastEndedPeriod.key;
-  const lastFilings = d.filings.filter((f) => f.periodKey === lastKey && !f.isDemo);
-
+  const importedKeys = [...historic.activityMonths].sort((a,b) => position(b) - position(a));
+  const topCustomers = new Map<string,{gstin:string;amount:number;count:number}>();
+  for(const row of importedRows){
+    const old = topCustomers.get(row.recipientGstin) ?? {gstin:row.recipientGstin,amount:0,count:0};
+    old.amount += Number(row.value); old.count++; topCustomers.set(row.recipientGstin,old);
+  }
+  const leaders = [...topCustomers.values()].sort((a,b)=>b.amount-a.amount).slice(0,4);
+  const hasHistory = historic.periods.length > 0;
+  const hasSales = invoicesCount > 0;
+  const overlaps=historic.overlapCount;
+  const monthUrl = `/invoices?period=${d.period.key}`;
   return (
-    <div className="space-y-7">
-      <PageHeader title={t("dash_title")} subtitle={`${t("dash_period")}: ${d.period.label}`} />
-
-      <Link href="/invoices/new" className="group relative flex items-center gap-5 overflow-hidden rounded-[26px] bg-[#193e32] p-7 text-white shadow-[0_24px_50px_-28px_rgba(17,53,41,.6)] transition-all hover:bg-[#235541] sm:p-9">
-        <span className="grid size-16 shrink-0 place-items-center rounded-2xl border border-white/20 bg-white/10"><Mic className="size-7" aria-hidden /></span>
-        <span className="min-w-0 flex-1">
-          <span className="block text-2xl font-semibold tracking-[-0.04em]">{t("dash_create_big")}</span>
-          <span className="block text-sm text-white/85">{t("dash_create_hint")}</span>
-        </span>
-        <ArrowRight className="size-6 shrink-0" aria-hidden />
-      </Link>
-
-      <nav className="-mx-1 flex gap-2 overflow-x-auto px-1 pb-1" aria-label="Choose month">
-        {months.map((m) => (
-          <Link key={m.key} href={`/?period=${m.key}`} className={`shrink-0 rounded-full px-3 py-1.5 text-sm font-medium ${m.key === d.period.key ? "bg-ink text-white" : "bg-white text-ink ring-1 ring-line"}`}>{m.label}</Link>
-        ))}
-      </nav>
-
-      {historic.periods.length > 0 && <div className="flex flex-wrap items-center gap-2"><span className="text-xs font-semibold text-muted">Months with imported GST data:</span>{[...historic.periods].sort().slice(-12).map(key=><Link key={key} href={`/?period=${key}`} className="rounded-full border border-line bg-white px-3 py-1.5 text-xs font-semibold">{parsePeriodKey(key,"MONTHLY").label}</Link>)}</div>}
-
-      <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
-        <Stat label="Recorded + imported B2B taxable sales" value={formatINR(combinedTaxable)} note={`${formatINR(combinedValue)} invoice value · imported history is partial`} />
-        <Link href={`/invoices?period=${d.period.key}`}><Stat label="Invoices recorded" value={d.totals.issuedCount + imported.count} note={`${d.totals.issuedCount} issued in Compte · ${imported.count} imported`} /></Link>
-        <Stat label="GST on Compte-issued invoices" value={formatINR(d.totals.gst)} note="Historical imported GST is not calculated from these files; this is not total tax liability." />
-        <Link href="/invoices?status=DRAFT"><Stat label={t("dash_drafts")} value={d.totals.draftCount} note="All open drafts" /></Link>
+    <div className="space-y-6">
+      <PageHeader title={copy.homeTitle} subtitle={`${copy.period}: ${d.period.label} · ${d.business.tradeName || d.business.legalName}`} />
+      {showingLatestImport && <div role="status" className="rounded-xl border border-brand-100 bg-brand-50 px-4 py-3 text-sm text-brand-700">
+        {copy.latestImport}
+      </div>}
+      <div className="grid grid-cols-2 gap-3">
+        <Link href="/invoices/new" className="flex min-h-24 items-center gap-3 rounded-2xl bg-[#193e32] p-4 text-white shadow-sm hover:bg-[#235541]">
+          <Mic className="size-7 shrink-0" aria-hidden /><span className="min-w-0"><b className="block text-base">{copy.create}</b><span className="text-xs text-white/85">{copy.createHint}</span></span><ArrowRight className="ml-auto size-4 shrink-0"/>
+        </Link>
+        <Link href="/gst-import" className="flex min-h-24 items-center gap-3 rounded-2xl border border-line bg-white p-4 hover:bg-canvas">
+          <FileInput className="size-6 shrink-0 text-brand-700" aria-hidden/><span className="min-w-0"><b className="block text-base">{copy.import}</b><span className="text-xs text-muted">{copy.importHint}</span></span>
+        </Link>
       </div>
-
-      <Card><CardTitle>Imported GST return history · {d.period.label}</CardTitle><p className="mt-2 text-sm">{imported.count} historical invoices · {formatINR(imported.taxable.toFixed(2))} taxable · {formatINR(imported.value.toFixed(2))} invoice value</p><p className="mt-1 text-xs text-muted">Included in combined B2B taxable sales above, without counting them as newly issued Compte invoices. Import is not proof of filing or payment.</p><Link href={`/invoices?period=${d.period.key}`} className="text-sm font-semibold text-brand-700">View invoices for this month →</Link></Card>
-      <div className="grid gap-5 lg:grid-cols-2">
+      <section aria-label="Select sales month" className="space-y-2">
+        <div className="flex items-center justify-between"><h2 className="text-sm font-semibold">{copy.chooseMonth}</h2><Link href="/gst-history" className="text-xs font-semibold text-brand-700">{copy.insights} →</Link></div>
+        <nav className="-mx-1 flex gap-2 overflow-x-auto px-1 py-1" aria-label="Sales month">
+          {months.map(m=><Link key={m.key} href={`/?period=${m.key}`} aria-current={m.key===d.period.key?"date":undefined} className={`shrink-0 rounded-full px-4 py-2.5 text-sm font-medium ${m.key===d.period.key?"bg-[#193e32] text-white":"bg-white text-ink ring-1 ring-line"}`}>{m.label}</Link>)}
+        </nav>
+        {hasHistory && <div className="flex flex-wrap items-center gap-1.5"><span className="text-xs text-muted">{copy.imported}:</span>{importedKeys.slice(0,8).map(k=><Link href={`/?period=${k}`} key={k} className={`rounded-lg px-2.5 py-1 text-xs font-semibold ${k===d.period.key?"bg-brand-100 text-brand-700":"bg-canvas text-ink"}`}>{parsePeriodKey(k,"MONTHLY").label}</Link>)}</div>}
+      </section>
+      {hasSales ? <>
+        <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+          <Link href={monthUrl}><Stat label={copy.taxable} value={formatINR(combinedTaxable)} note={`${imported.count} historical · ${d.totals.issuedCount} new invoices`} /></Link>
+          <Link href={monthUrl}><Stat label={copy.invoiceValue} value={formatINR(combinedValue)} note={copy.invoiceAmountNote} /></Link>
+          <Link href={monthUrl}><Stat label={copy.count} value={invoicesCount} note={`Imported ${imported.count} · Compte ${d.totals.issuedCount}`} /></Link>
+          <Link href={monthUrl}><Stat label={copy.buyers} value={buyers} note={copy.buyersNote} /></Link>
+        </div>
+        <p className="text-xs text-muted">{copy.taxableNote}{overlaps>0 ? ` ${overlaps} overlapping historical invoice(s) were excluded from these totals.` : ""}</p>
         <Card>
-          <div className="mb-3 flex items-center justify-between">
-            <CardTitle>{t("dash_returns_status")}</CardTitle>
-            <LinkButton href="/returns" variant="secondary" size="sm"><Landmark className="size-4" />{t("nav_returns")}</LinkButton>
+          <div className="flex flex-wrap items-center justify-between gap-3"><div><CardTitle>{copy.sourceTitle}</CardTitle><p className="mt-1 text-sm text-muted">{copy.sourceHint} · {d.period.label}</p></div><LinkButton size="sm" href={monthUrl} variant="secondary">{copy.seeInvoices} ({invoicesCount}) <ArrowRight className="size-4"/></LinkButton></div>
+          <div className="mt-4 grid grid-cols-2 gap-3 text-sm">
+            <div className="rounded-xl bg-canvas p-3"><p className="text-muted">{copy.history}</p><p className="mt-1 text-lg font-bold">{formatINR(imported.taxable.toFixed(2))}</p><p className="text-xs text-muted">{imported.count} · {copy.readOnly}</p></div>
+            <div className="rounded-xl bg-canvas p-3"><p className="text-muted">{copy.newlyIssued}</p><p className="mt-1 text-lg font-bold">{formatINR(d.totals.taxable)}</p><p className="text-xs text-muted">{d.totals.issuedCount} · {copy.newlyIssuedShort}</p></div>
           </div>
-          <p className="mb-3 text-sm text-muted">Last completed period: <b className="text-ink">{d.lastEndedPeriod.label}</b></p>
-          <div className="space-y-2">
-            {(["GSTR1", "GSTR3B"] as const).map((rt) => {
-              const f = lastFilings.find((x) => x.returnType === rt);
-              return (
-                <div key={rt} className="flex items-center justify-between rounded-xl bg-canvas px-3 py-2.5">
-                  <span className="text-sm font-semibold">{rt === "GSTR1" ? "GSTR-1" : "GSTR-3B"} nil filing</span>
-                  <FilingStatusBadge status={(f?.status ?? "NOT_STARTED") as FilingStatus} label={t(`fs_${f?.status ?? "NOT_STARTED"}` as Parameters<typeof t>[0])} />
-                </div>
-              );
-            })}
-          </div>
-          <Link href={`/returns/${lastKey}`} className="mt-3 inline-flex items-center gap-1 text-sm font-semibold text-brand-700">Open {d.lastEndedPeriod.label} <ArrowRight className="size-4" /></Link>
         </Card>
-
+      </> : <Card className="space-y-3"><CardTitle>{copy.noData} · {d.period.label}</CardTitle><p className="text-sm text-muted">{copy.noDataHint}</p><div className="flex flex-wrap gap-2"><LinkButton href="/gst-import" size="sm">{copy.import}</LinkButton><LinkButton href="/invoices/new" variant="outline" size="sm">{copy.create}</LinkButton></div></Card>}
+      <div className="grid gap-4 lg:grid-cols-2">
         <Card>
-          <CardTitle className="mb-3">{t("dash_customers_top")}</CardTitle>
-          {d.customers.length ? (
-            <ul className="divide-y divide-line">
-              {d.customers.map((c) => (
-                <li key={c.name} className="flex items-center justify-between py-2.5 text-sm">
-                  <span className="font-medium">{c.name} <span className="text-muted">· {c.count} inv.</span></span>
-                  <span className="tabular font-semibold">{formatINR(c.taxable)}</span>
-                </li>
-              ))}
-            </ul>
-          ) : imported.count > 0 ? <p className="text-sm text-muted">{imported.count} historical B2B invoices imported for this month. View the invoice list for recipient GSTINs.</p> : <Empty>No invoice data in {d.period.label}.</Empty>}
+          <div className="flex items-center justify-between gap-2"><CardTitle>{copy.returnInfo}</CardTitle><Link href="/returns" className="text-sm font-semibold text-brand-700">{copy.viewReturns} →</Link></div>
+          <div className="mt-3 flex items-start gap-3 rounded-xl bg-canvas p-3"><Landmark className="mt-0.5 size-5 text-brand-700"/><div><p className="text-sm font-semibold">{imported.count ? copy.returnImported : copy.returnUnverified}</p><p className="mt-1 text-xs text-muted">{imported.count ? "{copy.returnNote}" : "{copy.returnEmpty}"}</p></div></div>
+          {d.totals.issuedCount>0 && <p className="mt-3 text-xs text-muted">{copy.taxNew}: {formatINR(d.totals.gst)}. {copy.taxNewNote}</p>}
+        </Card>
+        <Card>
+          <div className="flex justify-between gap-2"><CardTitle>{copy.customers}</CardTitle><Link href="/customers" className="text-sm font-semibold text-brand-700">{copy.manageCustomers} →</Link></div>
+          {leaders.length ? <ul className="mt-2 divide-y divide-line">{leaders.map(c=><li key={c.gstin} className="flex items-center justify-between gap-3 py-2.5 text-sm"><div><p className="font-semibold">{c.gstin}</p><p className="text-xs text-muted">{c.count} imported invoice{c.count!==1?"s":""}</p></div><p className="font-semibold">{formatINR(c.amount.toFixed(2))}</p></li>)}</ul>
+          : d.customers.length ? <ul className="mt-2 divide-y divide-line">{d.customers.map(c=><li key={c.name} className="flex items-center justify-between gap-2 py-2 text-sm"><span>{c.name}</span><b>{formatINR(c.taxable)}</b></li>)}</ul>
+          : <p className="mt-3 text-sm text-muted">{copy.noCustomers}</p>}
         </Card>
       </div>
-
-      <Card>
-        <CardTitle className="mb-3">{t("dash_recent")}</CardTitle>
-        {d.recent.length ? (
-          <ul className="divide-y divide-line">
-            {d.recent.map((r) => (
-              <li key={r.id} className="flex items-center justify-between gap-3 py-2.5 text-sm">
-                <span className="min-w-0 truncate">
-                  {ACTION_LABEL[r.action] ?? r.action}
-                  {typeof r.metadata.invoiceNumber === "string" && <Badge tone="brand" className="ml-2 font-mono">{r.metadata.invoiceNumber}</Badge>}
-                  {typeof r.metadata.to === "string" && r.entityType === "NilReturnFiling" && <Badge className="ml-2">{String(r.metadata.to).replace(/_/g, " ").toLowerCase()}</Badge>}
-                </span>
-                <time className="shrink-0 text-xs text-muted">{r.createdAt.toLocaleString("en-IN", { timeZone: "Asia/Kolkata", day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit" })}</time>
-              </li>
-            ))}
-          </ul>
-        ) : <Empty>No activity yet.</Empty>}
-      </Card>
+      {d.totals.draftCount>0 && <Link href="/invoices?status=DRAFT"><Card className="flex items-center justify-between gap-3"><span><b>{d.totals.draftCount} invoice draft(s)</b><span className="block text-xs text-muted">{copy.draftsHint}</span></span><ArrowRight className="size-5 text-brand-700"/></Card></Link>}
+      <div className="flex flex-wrap gap-3 text-sm"><Link href="/gst-history" className="inline-flex items-center gap-2 font-semibold text-brand-700"><TrendingUp className="size-4"/>{copy.businessInsights}</Link><Link href="/invoices" className="inline-flex items-center gap-2 font-semibold text-brand-700"><ReceiptText className="size-4"/>{copy.allInvoices}</Link><Link href="/customers" className="inline-flex items-center gap-2 font-semibold text-brand-700"><Users className="size-4"/>{copy.manage}</Link></div>
     </div>
   );
 }
