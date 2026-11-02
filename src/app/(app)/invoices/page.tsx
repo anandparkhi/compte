@@ -2,6 +2,7 @@ import Link from "next/link";
 import { ArrowRight, FileInput, Plus, Search } from "lucide-react";
 import { requirePageContext } from "@/server/auth/session";
 import { prisma } from "@/server/db";
+import { invoiceMonthKey } from "@/lib/gst-import/invoice-month";
 import { parsePeriodKey } from "@/lib/domain/periods";
 import { readHistorical } from "@/server/services/historical-records";
 import { listInvoices } from "@/server/services/invoices";
@@ -25,7 +26,7 @@ export default async function InvoicesPage({ searchParams }: { searchParams: Pro
  const [rows,customers,historical]=await Promise.all([listInvoices(ctx),listCustomers(ctx),readHistorical(ctx.businessId)]);
  const selectedCustomer=customers.find(c=>c.id===sp.customer);
  const newRows=rows.filter(i=>(!month||i.invoiceDate>=month.start&&i.invoiceDate<month.endExclusive)&&(!selectedCustomer||i.customerId===selectedCustomer.id));
- const oldRows=historical.invoices.filter(i=>(!month||i.periodKey===month.key)&&(!selectedCustomer||!!selectedCustomer.gstin&&i.recipientGstin===selectedCustomer.gstin));
+ const oldRows=historical.invoices.filter(i=>(!month||invoiceMonthKey(i.date,i.periodKey)===month.key)&&(!selectedCustomer||!!selectedCustomer.gstin&&i.recipientGstin===selectedCustomer.gstin));
  const links=(which:Tab,c?:string)=>{const q=new URLSearchParams();if(which!=="ALL")q.set("tab",which);if(month)q.set("period",month.key);if(c)q.set("customer",c);return "/invoices"+(q.size?"?"+q.toString():"");};
  const items=[
   ...newRows.filter(i=>tab==="ALL"||tab==="DRAFT"&&i.status==="DRAFT"||tab==="ISSUED"&&i.status==="ISSUED").map(i=>({id:i.id,date:i.invoiceDate,number:i.invoiceNumber??"Draft invoice",recipient:i.customer?.name??"Customer not selected",amount:i.grandTotal,kind:i.status==="DRAFT"?"DRAFT":"ISSUED",href:`/invoices/${i.id}`})),
