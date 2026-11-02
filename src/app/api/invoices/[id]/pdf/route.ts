@@ -8,7 +8,7 @@ export const dynamic = "force-dynamic";
 
 export async function GET(req: Request, { params }: { params: Promise<{ id: string }> }) {
   try {
-    const { invoice, snapshot } = await getInvoiceForDocument(await requireApiContext(), (await params).id);
+    const { invoice, snapshot } = await getInvoiceForDocument(await requireApiContext(), (await params).id, true);
     const pdf = await renderInvoicePdf(snapshot, invoice.status === "CANCELLED");
     const inline = new URL(req.url).searchParams.get("inline") === "1";
     return new Response(new Uint8Array(pdf), {
