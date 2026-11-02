@@ -17,7 +17,7 @@ export default async function DashboardPage({ searchParams }: { searchParams: Pr
   const ctx = await requirePageContext();
   const sp = await searchParams;
   const historic = await readHistorical(ctx.businessId);
-  const mostRecentImport = [...historic.periods].sort((a, b) => position(b) - position(a))[0];
+  const mostRecentImport = [...historic.activityMonths].sort((a, b) => position(b) - position(a))[0];
   const requested = validKey(sp.period);
   let d = await dashboard(ctx, requested ?? undefined);
   // First-time businesses should see their actual imported history, not an empty current month.
@@ -37,7 +37,7 @@ export default async function DashboardPage({ searchParams }: { searchParams: Pr
     base.setUTCMonth(base.getUTCMonth() - 3 + i);
     return parsePeriodKey(periodKeyFor(base.getUTCFullYear(), base.getUTCMonth() + 1), "MONTHLY");
   });
-  const importedKeys = [...historic.periods].sort((a,b) => position(b) - position(a));
+  const importedKeys = [...historic.activityMonths].sort((a,b) => position(b) - position(a));
   const topCustomers = new Map<string,{gstin:string;amount:number;count:number}>();
   for(const row of importedRows){
     const old = topCustomers.get(row.recipientGstin) ?? {gstin:row.recipientGstin,amount:0,count:0};
@@ -46,6 +46,7 @@ export default async function DashboardPage({ searchParams }: { searchParams: Pr
   const leaders = [...topCustomers.values()].sort((a,b)=>b.amount-a.amount).slice(0,4);
   const hasHistory = historic.periods.length > 0;
   const hasSales = invoicesCount > 0;
+  const overlaps=historic.overlapCount;
   const monthUrl = `/invoices?period=${d.period.key}`;
   return (
     <div className="space-y-6">
@@ -75,7 +76,7 @@ export default async function DashboardPage({ searchParams }: { searchParams: Pr
           <Link href={monthUrl}><Stat label={copy.count} value={invoicesCount} note={`Imported ${imported.count} · Compte ${d.totals.issuedCount}`} /></Link>
           <Link href={monthUrl}><Stat label={copy.buyers} value={buyers} note={imported.count ? copy.buyersNote : copy.noHistoricalBuyers} /></Link>
         </div>
-        <p className="text-xs text-muted">{copy.taxableNote}</p>
+        <p className="text-xs text-muted">{copy.taxableNote}{overlaps>0 ? ` ${overlaps} overlapping historical invoice(s) were excluded from these totals.` : ""}</p>
         <Card>
           <div className="flex flex-wrap items-center justify-between gap-3"><div><CardTitle>{copy.sourceTitle}</CardTitle><p className="mt-1 text-sm text-muted">{copy.sourceHint} · {d.period.label}</p></div><LinkButton size="sm" href={monthUrl} variant="secondary">{copy.seeInvoices} ({invoicesCount}) <ArrowRight className="size-4"/></LinkButton></div>
           <div className="mt-4 grid grid-cols-2 gap-3 text-sm">
