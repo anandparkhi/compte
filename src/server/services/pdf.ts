@@ -185,18 +185,26 @@ async function renderInvoicePdfFull(s: InvoiceSnapshot, cancelled = false): Prom
  * All financial and supplier/buyer fields remain visible; names in scripts outside
  * Helvetica's encoding may need correction, hence the prominent warning.
  */
-async function renderInvoicePdfFallback(s: InvoiceSnapshot, cancelled: boolean): Promise<Buffer> {
-  const doc = new PDFDocument({size:"A4",margin:42,info:{Title:`Tax Invoice ${s.invoiceNumber}`,Producer:brand.name}});
-  const usable = (value: unknown) => String(value ?? "").replace(/[^\x20-\x7E]/g,"?");
+export async function renderInvoicePdfFallback(s: InvoiceSnapshot, cancelled: boolean): Promise<Buffer> {
+  let doc: PDFKit.PDFDocument;
+  let unicodeFonts = true;
+  try { doc = newDoc(`Tax Invoice ${s.invoiceNumber}`); }
+  catch {
+    unicodeFonts = false;
+    doc = new PDFDocument({size:"A4",margin:42,info:{Title:`Tax Invoice ${s.invoiceNumber}`,Producer:brand.name}});
+  }
+  const regular = unicodeFonts ? "R" : "Helvetica";
+  const bold = unicodeFonts ? "B" : "Helvetica-Bold";
+  const usable = (value: unknown) => unicodeFonts ? String(value ?? "") : String(value ?? "").replace(/[^\x20-\x7E]/g,"?");
   const write = (label:string, value:unknown) => {
     if (doc.y > 710) doc.addPage();
-    doc.font("Helvetica-Bold").fontSize(9).text(label,{continued:true});
-    doc.font("Helvetica").fontSize(9).text(" "+usable(value));
+    doc.font(bold).fontSize(9).text(label,{continued:true});
+    doc.font(regular).fontSize(9).text(" "+usable(value));
     doc.moveDown(0.25);
   };
-  doc.font("Helvetica-Bold").fontSize(18).text(cancelled?"CANCELLED INVOICE COPY":"TAX INVOICE");
+  doc.font(bold).fontSize(18).text(cancelled?"CANCELLED INVOICE COPY":"TAX INVOICE");
   doc.moveDown(0.4);
-  doc.font("Helvetica-Bold").fontSize(9).fillColor("#a33528").text("Simplified PDF copy - check customer names and script characters against the original record.");
+  doc.font(bold).fontSize(9).fillColor("#a33528").text(unicodeFonts ? "Simplified invoice copy generated from the verified issued record." : "Limited-font fallback: check customer names and script characters against the original invoice record.");
   doc.fillColor("#222222").moveDown(0.8);
   write("Invoice number:",s.invoiceNumber);
   write("Invoice date:",s.invoiceDate);
@@ -212,8 +220,8 @@ async function renderInvoicePdfFallback(s: InvoiceSnapshot, cancelled: boolean):
   for(const line of s.lines) {
     if(doc.y>690)doc.addPage();
     doc.moveDown(0.3);
-    doc.font("Helvetica-Bold").fontSize(9).text(`${line.position}. ${usable(line.description)}  [HSN/SAC ${usable(line.hsnSac)}]`);
-    doc.font("Helvetica").fontSize(9).text(`Qty: ${usable(line.quantity)} ${usable(line.unit)}, rate: INR ${line.unitPrice}, GST: ${line.gstRate}%, taxable: INR ${line.taxableValue}, line total: INR ${line.lineTotal}`);
+    doc.font(bold).fontSize(9).text(`${line.position}. ${usable(line.description)}  [HSN/SAC ${usable(line.hsnSac)}]`);
+    doc.font(regular).fontSize(9).text(`Qty: ${usable(line.quantity)} ${usable(line.unit)}, rate: INR ${line.unitPrice}, GST: ${line.gstRate}%, taxable: INR ${line.taxableValue}, line total: INR ${line.lineTotal}`);
     doc.fontSize(8).text(`CGST: INR ${line.cgst}, SGST/UTGST: INR ${line.sgst}, IGST: INR ${line.igst}`);
   }
   if(doc.y>650)doc.addPage();
@@ -224,8 +232,8 @@ async function renderInvoicePdfFallback(s: InvoiceSnapshot, cancelled: boolean):
   ])write(label,`INR ${val}`);
   write("Amount in words:",s.amountInWords);
   write("Authorised signatory:",s.signatory.name);
-  if(s.isDemo) doc.font("Helvetica-Bold").fontSize(10).text("DEMO - NOT A REAL INVOICE");
-  if(cancelled)doc.font("Helvetica-Bold").fontSize(10).text("CANCELLED - FOR RECORDS ONLY");
+  if(s.isDemo) doc.font(bold).fontSize(10).text("DEMO - NOT A REAL INVOICE");
+  if(cancelled)doc.font(bold).fontSize(10).text("CANCELLED - FOR RECORDS ONLY");
   return toBuffer(doc);
 }
 
