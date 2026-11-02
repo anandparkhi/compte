@@ -56,7 +56,7 @@ export default async function ReturnsPage({ searchParams }: { searchParams: Prom
               {r.ended && <Link href={`/returns/${r.period.key}/nil`} className="inline-flex h-10 items-center gap-1 rounded-xl border border-line bg-white px-3 text-sm font-semibold">{t("returns_nil")}</Link>}
             </div>
           </Card>
-        );})
+        );})}
       </div>
     </div>
   );
