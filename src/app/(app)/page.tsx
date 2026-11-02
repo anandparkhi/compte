@@ -49,7 +49,7 @@ export default async function DashboardPage({ searchParams }: { searchParams: Pr
   const monthUrl = `/invoices?period=${d.period.key}`;
   return (
     <div className="space-y-6">
-      <PageHeader title={copy.homeTitle} subtitle={`Showing ${d.period.label} · ${d.business.tradeName || d.business.legalName}`} />
+      <PageHeader title={copy.homeTitle} subtitle={`${copy.period}: ${d.period.label} · ${d.business.tradeName || d.business.legalName}`} />
       {showingLatestImport && <div role="status" className="rounded-xl border border-brand-100 bg-brand-50 px-4 py-3 text-sm text-brand-700">
         {copy.latestImport}
       </div>}
@@ -73,22 +73,22 @@ export default async function DashboardPage({ searchParams }: { searchParams: Pr
           <Link href={monthUrl}><Stat label={copy.taxable} value={formatINR(combinedTaxable)} note={`${imported.count} historical · ${d.totals.issuedCount} new invoices`} /></Link>
           <Link href={monthUrl}><Stat label={copy.invoiceValue} value={formatINR(combinedValue)} note={copy.invoiceAmountNote} /></Link>
           <Link href={monthUrl}><Stat label={copy.count} value={invoicesCount} note={`Imported ${imported.count} · Compte ${d.totals.issuedCount}`} /></Link>
-          <Link href={monthUrl}><Stat label={copy.buyers} value={buyers} note={imported.count ? "{copy.buyersNote}" : copy.noHistoricalBuyers} /></Link>
+          <Link href={monthUrl}><Stat label={copy.buyers} value={buyers} note={imported.count ? copy.buyersNote : copy.noHistoricalBuyers} /></Link>
         </div>
-        <p className="text-xs text-muted">These figures combine imported B2B history with invoices created in Compte. Historical data may exclude B2C sales, amendments and other sections; check for overlaps before relying on combined totals. {copy.invoiceValue} is not money received or profit.</p>
+        <p className="text-xs text-muted">{copy.taxableNote}</p>
         <Card>
-          <div className="flex flex-wrap items-center justify-between gap-3"><div><CardTitle>{copy.sourceTitle}</CardTitle><p className="mt-1 text-sm text-muted">A clear breakdown for {d.period.label}</p></div><LinkButton size="sm" href={monthUrl} variant="secondary">See {invoicesCount} invoices <ArrowRight className="size-4"/></LinkButton></div>
+          <div className="flex flex-wrap items-center justify-between gap-3"><div><CardTitle>{copy.sourceTitle}</CardTitle><p className="mt-1 text-sm text-muted">{copy.sourceHint} · {d.period.label}</p></div><LinkButton size="sm" href={monthUrl} variant="secondary">{copy.seeInvoices} ({invoicesCount}) <ArrowRight className="size-4"/></LinkButton></div>
           <div className="mt-4 grid grid-cols-2 gap-3 text-sm">
-            <div className="rounded-xl bg-canvas p-3"><p className="text-muted">{copy.history}</p><p className="mt-1 text-lg font-bold">{formatINR(imported.taxable.toFixed(2))}</p><p className="text-xs text-muted">{imported.count} invoices · read-only</p></div>
-            <div className="rounded-xl bg-canvas p-3"><p className="text-muted">{copy.newlyIssued}</p><p className="mt-1 text-lg font-bold">{formatINR(d.totals.taxable)}</p><p className="text-xs text-muted">{d.totals.issuedCount} newly issued</p></div>
+            <div className="rounded-xl bg-canvas p-3"><p className="text-muted">{copy.history}</p><p className="mt-1 text-lg font-bold">{formatINR(imported.taxable.toFixed(2))}</p><p className="text-xs text-muted">{imported.count} · {copy.readOnly}</p></div>
+            <div className="rounded-xl bg-canvas p-3"><p className="text-muted">{copy.newlyIssued}</p><p className="mt-1 text-lg font-bold">{formatINR(d.totals.taxable)}</p><p className="text-xs text-muted">{d.totals.issuedCount} · {copy.newlyIssuedShort}</p></div>
           </div>
         </Card>
-      </> : <Card className="space-y-3"><CardTitle>{copy.noData} · {d.period.label} yet</CardTitle><p className="text-sm text-muted">{copy.noDataHint}</p><div className="flex flex-wrap gap-2"><LinkButton href="/gst-import" size="sm">Import GST returns</LinkButton><LinkButton href="/invoices/new" variant="outline" size="sm">Create invoice</LinkButton></div></Card>}
+      </> : <Card className="space-y-3"><CardTitle>{copy.noData} · {d.period.label}</CardTitle><p className="text-sm text-muted">{copy.noDataHint}</p><div className="flex flex-wrap gap-2"><LinkButton href="/gst-import" size="sm">{copy.import}</LinkButton><LinkButton href="/invoices/new" variant="outline" size="sm">{copy.create}</LinkButton></div></Card>}
       <div className="grid gap-4 lg:grid-cols-2">
         <Card>
           <div className="flex items-center justify-between gap-2"><CardTitle>{copy.returnInfo}</CardTitle><Link href="/returns" className="text-sm font-semibold text-brand-700">{copy.viewReturns} →</Link></div>
-          <div className="mt-3 flex items-start gap-3 rounded-xl bg-canvas p-3"><Landmark className="mt-0.5 size-5 text-brand-700"/><div><p className="text-sm font-semibold">{imported.count ? copy.returnImported : copy.returnUnverified}</p><p className="mt-1 text-xs text-muted">{imported.count ? "Import is recorded; filing on the government portal has not been verified. Nil filing is not appropriate for this sales period." : "Compte cannot determine your official filing status without confirmation from the GST portal."}</p></div></div>
-          {d.totals.issuedCount>0 && <p className="mt-3 text-xs text-muted">GST calculated on Compte-issued invoices: {formatINR(d.totals.gst)}. This excludes imported tax and is not your tax liability.</p>}
+          <div className="mt-3 flex items-start gap-3 rounded-xl bg-canvas p-3"><Landmark className="mt-0.5 size-5 text-brand-700"/><div><p className="text-sm font-semibold">{imported.count ? copy.returnImported : copy.returnUnverified}</p><p className="mt-1 text-xs text-muted">{imported.count ? "{copy.returnNote}" : "{copy.returnEmpty}"}</p></div></div>
+          {d.totals.issuedCount>0 && <p className="mt-3 text-xs text-muted">{copy.taxNew}: {formatINR(d.totals.gst)}. {copy.taxNewNote}</p>}
         </Card>
         <Card>
           <div className="flex justify-between gap-2"><CardTitle>{copy.customers}</CardTitle><Link href="/customers" className="text-sm font-semibold text-brand-700">{copy.manageCustomers} →</Link></div>
@@ -97,7 +97,7 @@ export default async function DashboardPage({ searchParams }: { searchParams: Pr
           : <p className="mt-3 text-sm text-muted">{copy.noCustomers}</p>}
         </Card>
       </div>
-      {d.totals.draftCount>0 && <Link href="/invoices?status=DRAFT"><Card className="flex items-center justify-between gap-3"><span><b>{d.totals.draftCount} invoice draft(s)</b><span className="block text-xs text-muted">Finish or discard these before issuing</span></span><ArrowRight className="size-5 text-brand-700"/></Card></Link>}
+      {d.totals.draftCount>0 && <Link href="/invoices?status=DRAFT"><Card className="flex items-center justify-between gap-3"><span><b>{d.totals.draftCount} invoice draft(s)</b><span className="block text-xs text-muted">{copy.draftsHint}</span></span><ArrowRight className="size-5 text-brand-700"/></Card></Link>}
       <div className="flex flex-wrap gap-3 text-sm"><Link href="/gst-history" className="inline-flex items-center gap-2 font-semibold text-brand-700"><TrendingUp className="size-4"/>{copy.businessInsights}</Link><Link href="/invoices" className="inline-flex items-center gap-2 font-semibold text-brand-700"><ReceiptText className="size-4"/>{copy.allInvoices}</Link><Link href="/customers" className="inline-flex items-center gap-2 font-semibold text-brand-700"><Users className="size-4"/>{copy.manage}</Link></div>
     </div>
   );
