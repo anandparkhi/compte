@@ -30,8 +30,6 @@ jobs:
           node-version: '22'
       - name: Install Prisma dependencies
         run: npm install --no-audit --no-fund
-      - name: Check migration status
-        run: npx prisma migrate status
       - name: Apply version-controlled migrations
         run: npx prisma migrate deploy
       - name: Verify migration status
