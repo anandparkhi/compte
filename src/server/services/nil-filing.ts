@@ -6,6 +6,7 @@ import { audit } from "../audit";
 import { env } from "../env";
 import { assertCanWrite, type Ctx } from "../auth/ctx";
 import { today } from "./invoices";
+import { readHistorical, inReturnPeriod } from "./historical-records";
 import { assessNilEligibility, DECLARATION_TEXT, type LocalEvidence, type Tri } from "@/lib/domain/nil-eligibility";
 import { assertTransition, COMMITTED_STATUSES, FilingTransitionError, isFiledLike, type FilingStatus } from "@/lib/domain/filing-state";
 import { buildNilInitiationSms, confirmationTemplate, helpSms, type NilReturnType } from "@/lib/domain/gstn-sms";
@@ -34,14 +35,17 @@ async function loadFiling(ctx: Ctx, filingId: string) {
 /** Locally recorded activity for the period — evidence that cannot be overridden by declarations. */
 export async function localEvidence(businessId: string, returnType: NilReturnType, period: ReturnPeriod, isDemo: boolean): Promise<LocalEvidence> {
   const range = { gte: dateOnly(period.start), lt: dateOnly(period.endExclusive) };
-  const [issued, drafts, inward, rcm, done] = await Promise.all([
+  const [issued, drafts, inward, rcm, done, history] = await Promise.all([
     prisma.invoice.count({ where: { businessId, status: "ISSUED", invoiceDate: range } }),
     prisma.invoice.count({ where: { businessId, status: "DRAFT", invoiceDate: range } }),
     prisma.inwardSupply.count({ where: { businessId, documentDate: range } }),
     prisma.inwardSupply.count({ where: { businessId, documentDate: range, reverseCharge: true } }),
     prisma.nilReturnFiling.count({ where: { businessId, returnType, periodKey: period.key, isDemo, status: { in: ["ARN_RECORDED_UNVERIFIED", "FILED_VERIFIED"] } } }),
+    readHistorical(businessId),
   ]);
-  return { issuedInvoiceCount: issued, draftInvoiceCount: drafts, inwardSupplyCount: inward, reverseChargeInwardCount: rcm, alreadyRecordedInCompte: done > 0 };
+  const historicalInvoices = inReturnPeriod(history.invoices, period).length;
+  const hasImport = period.months.some(m => history.periods.includes(String(m.month).padStart(2,"0")+m.year));
+  return { issuedInvoiceCount: issued, historicalImportCount: Math.max(historicalInvoices, hasImport ? 1 : 0), draftInvoiceCount: drafts, inwardSupplyCount: inward, reverseChargeInwardCount: rcm, alreadyRecordedInCompte: done > 0 };
 }
 
 export async function getOrCreateFiling(ctx: Ctx, raw: { returnType: string; periodKey: string; demo?: boolean }) {
