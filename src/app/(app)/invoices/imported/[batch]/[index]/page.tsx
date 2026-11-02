@@ -1,14 +1,14 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { ArrowLeft, Info } from "lucide-react";
+import { ArrowLeft, ArrowRight, ChevronDown, FileCheck2 } from "lucide-react";
 import { requirePageContext } from "@/server/auth/session";
 import { prisma } from "@/server/db";
-import { Card, Badge, PageHeader } from "@/components/ui";
+import { invoiceMonthKey } from "@/lib/gst-import/invoice-month";
+import { ownerUiCopy } from "@/lib/i18n/owner-ui-copy";
 import { formatINR } from "@/lib/domain/money";
 import { parsePeriodKey, periodForDate } from "@/lib/domain/periods";
 
-export const dynamic = "force-dynamic";
-
+export const dynamic="force-dynamic";
 export default async function ImportedInvoicePage({params}:{params:Promise<{batch:string;index:string}>}){
  const ctx=await requirePageContext();
  const {batch,index}=await params;
@@ -18,19 +18,26 @@ export default async function ImportedInvoicePage({params}:{params:Promise<{batc
  let data:{invoices?:{recipientGstin:string;number:string;date:string;value:number;taxable:number}[]};
  try{data=JSON.parse(record.records);}catch{notFound();}
  const row=data.invoices?.[Number(index)];
- if(!row||!row.number)notFound();
+ if(!row?.number)notFound();
  const business=await prisma.business.findUniqueOrThrow({where:{id:ctx.businessId}});
- const monthly=parsePeriodKey(record.periodKey,"MONTHLY");
- const filing=periodForDate(monthly.start,business.filingFrequency as "MONTHLY"|"QUARTERLY");
+ const customer=await prisma.customer.findFirst({where:{businessId:ctx.businessId,gstin:row.recipientGstin},select:{name:true}});
+ const u=ownerUiCopy(business.preferredLanguage);
+ const monthKey=invoiceMonthKey(row.date,record.periodKey);
+ const filing=periodForDate(parsePeriodKey(record.periodKey,"MONTHLY").start,business.filingFrequency as "MONTHLY"|"QUARTERLY");
+ const name=customer?.name&&!customer.name.startsWith("Imported GSTIN ")?customer.name:u.customer;
  return <div className="mx-auto max-w-3xl space-y-5">
-  <Link href={`/invoices?period=${record.periodKey}`} className="inline-flex items-center gap-2 text-sm font-semibold text-brand-700"><ArrowLeft className="size-4"/>Back to invoices</Link>
-  <PageHeader title={row.number} subtitle="Historical invoice imported from GSTR-1" />
-  <div className="flex flex-wrap gap-2"><Badge tone="info">Imported · read-only</Badge><Badge>GST portal filing unverified</Badge></div>
-  <Card className="space-y-4">
-   <div><p className="text-xs text-muted">Customer GSTIN</p><p className="mt-1 font-semibold">{row.recipientGstin}</p></div>
-   <div className="grid grid-cols-2 gap-4"><div><p className="text-xs text-muted">Invoice date (from return)</p><p className="font-semibold">{row.date||"Not supplied"}</p></div><div><p className="text-xs text-muted">GSTR-1 period</p><p className="font-semibold">{monthly.label}</p></div></div>
-   <div className="grid grid-cols-2 gap-4 border-t border-line pt-4"><div><p className="text-xs text-muted">Taxable amount</p><p className="text-xl font-bold">{formatINR(Number(row.taxable).toFixed(2))}</p></div><div><p className="text-xs text-muted">Invoice value as reported</p><p className="text-xl font-bold">{formatINR(Number(row.value).toFixed(2))}</p></div></div>
-  </Card>
-  <Card className="space-y-2"><h2 className="flex items-center gap-2 font-semibold"><Info className="size-4"/>What this record means</h2><p className="text-sm text-muted">This is historical evidence extracted from an uploaded GST return. Compte has not issued or verified this invoice, generated its original PDF, or confirmed payment. The difference between taxable and invoice values is not necessarily the exact GST amount.</p><p className="text-xs text-muted">Source: {record.sourceName} · Imported {record.createdAt.toLocaleDateString("en-IN")}</p><Link href={`/returns/${filing.key}`} className="inline-block text-sm font-semibold text-brand-700">View GST return period →</Link></Card>
+  <Link href={`/invoices?period=${monthKey}`} className="inline-flex items-center gap-1.5 text-sm font-semibold text-brand-700"><ArrowLeft className="size-4"/>{u.backToInvoices}</Link>
+  <div><span className="inline-flex items-center gap-1.5 rounded-full bg-brand-50 px-3 py-1 text-xs font-semibold text-brand-700"><FileCheck2 className="size-3.5"/>{u.imported} · {u.historicalBills}</span>
+   <h1 className="mt-3 break-words text-3xl font-semibold tracking-[-.05em]">{row.number}</h1><p className="mt-1 text-sm text-muted">{row.date} · {name}</p>
+  </div>
+  <section className="rounded-[24px] border border-line bg-white p-5 sm:p-7">
+    <p className="text-sm text-muted">{u.invoiceAmount}</p>
+    <p className="tabular mt-1 text-[clamp(2rem,7vw,3.2rem)] font-semibold leading-tight tracking-[-.055em]">{formatINR(Number(row.value).toFixed(2))}</p>
+    <div className="mt-5 grid grid-cols-2 gap-3 border-t border-line pt-4"><div><p className="text-xs text-muted">{u.taxableAmount}</p><p className="tabular mt-1 text-lg font-semibold">{formatINR(Number(row.taxable).toFixed(2))}</p></div><div><p className="text-xs text-muted">{u.returnPeriod}</p><p className="mt-1 font-semibold">{filing.label}</p></div></div>
+  </section>
+  <section className="overflow-hidden rounded-2xl border border-line bg-white"><div className="px-4 py-3.5"><h2 className="font-semibold">{u.invoiceCustomer}</h2><p className="mt-1 text-sm">{name}</p><p className="mt-1 break-all text-xs text-muted">GSTIN: {row.recipientGstin}</p></div>
+    <Link href={`/returns/${filing.key}`} className="flex items-center justify-between border-t border-line px-4 py-3.5 text-sm font-semibold text-brand-700">{u.goToReturn}<ArrowRight className="size-4"/></Link>
+  </section>
+  <details className="group overflow-hidden rounded-2xl border border-line bg-white"><summary className="flex cursor-pointer list-none items-center justify-between px-4 py-3.5 font-medium">{u.reviewDetails}<ChevronDown className="size-4 text-muted group-open:rotate-180"/></summary><div className="space-y-3 border-t border-line px-4 py-4 text-sm leading-relaxed text-muted"><p>{u.originalRecord}</p><p><b>{u.sourceFile}:</b> <span className="break-all">{record.sourceName}</span></p><p>{record.createdAt.toLocaleDateString("en-IN")}</p></div></details>
  </div>;
 }
