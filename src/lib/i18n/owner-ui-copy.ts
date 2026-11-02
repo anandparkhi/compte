@@ -1,6 +1,6 @@
 /** Short, reusable owner-facing UI labels. Extend with a new locale here. */
 const en={
- overview:"Business overview",newInvoice:"New invoice",latestActivity:"Latest activity",salesSummary:"Recorded sales summary",
+ overview:"Business overview",importAction:"Import returns",newInvoice:"New invoice",latestActivity:"Latest activity",salesSummary:"Recorded sales summary",
  salesRecorded:"Invoice value (incl. GST)",invoices:"invoices",imported:"Imported",historicalBills:"Historical invoices",issued:"Issued here",newBills:"New Compte invoices",
  gstStatus:"GST return",importedNotVerified:"Data imported · filing not verified",notVerified:"Filing status not verified",
  seeRecords:"View invoices",allCustomers:"View all",customer:"Customer",aboutFigures:"About these numbers",overlaps:"duplicates excluded",
@@ -15,7 +15,7 @@ const en={
  recordsCount:"records",emptyPeriod:"No sales records for this period",emptyExplain:"Import a GST return or create an invoice to see activity here."
 };
 const hi:typeof en={
- overview:"कारोबार का हाल",newInvoice:"नया बिल",latestActivity:"हाल की बिक्री",salesSummary:"बिक्री का सारांश",
+ overview:"कारोबार का हाल",importAction:"रिटर्न आयात करें",newInvoice:"नया बिल",latestActivity:"हाल की बिक्री",salesSummary:"बिक्री का सारांश",
  salesRecorded:"बिल की राशि (GST सहित)",invoices:"बिल",imported:"आयातित",historicalBills:"पुराने बिल",issued:"नए बिल",newBills:"Compte में बने बिल",
  gstStatus:"GST रिटर्न",importedNotVerified:"डेटा आया · फाइलिंग की पुष्टि नहीं",notVerified:"फाइलिंग की पुष्टि नहीं",
  seeRecords:"बिल देखें",allCustomers:"सभी देखें",customer:"ग्राहक",aboutFigures:"आंकड़ों की जानकारी",overlaps:"दोहराए रिकॉर्ड हटाए गए",
@@ -30,7 +30,7 @@ const hi:typeof en={
  recordsCount:"रिकॉर्ड",emptyPeriod:"इस अवधि में बिक्री के रिकॉर्ड नहीं",emptyExplain:"यहां रिकॉर्ड देखने के लिए GST रिटर्न आयात करें या नया बिल बनाएं।"
 };
 const mr:typeof en={
- overview:"व्यवसायाचा आढावा",newInvoice:"नवीन बिल",latestActivity:"अलीकडील विक्री",salesSummary:"विक्रीचा सारांश",
+ overview:"व्यवसायाचा आढावा",importAction:"रिटर्न आयात करा",newInvoice:"नवीन बिल",latestActivity:"अलीकडील विक्री",salesSummary:"विक्रीचा सारांश",
  salesRecorded:"बिलांची रक्कम (GST सह)",invoices:"बिले",imported:"आयात केलेले",historicalBills:"जुनी बिले",issued:"नवीन बिले",newBills:"Compte मध्ये बनलेली",
  gstStatus:"GST रिटर्न",importedNotVerified:"डेटा आयात · फाइलिंग पडताळलेले नाही",notVerified:"फाइलिंग पडताळलेले नाही",
  seeRecords:"बिले पाहा",allCustomers:"सर्व पाहा",customer:"ग्राहक",aboutFigures:"आकड्यांबद्दल",overlaps:"दुबार नोंदी वगळल्या",
