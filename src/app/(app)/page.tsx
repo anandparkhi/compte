@@ -24,7 +24,10 @@ export default async function DashboardPage({ searchParams }: { searchParams: Pr
   const sp = await searchParams;
   const d = await dashboard(ctx, sp.period);
   const historic = await readHistorical(ctx.businessId);
-  const imported = historicalTotals(inReturnPeriod(historic.invoices,d.period));
+  const importedRows = inReturnPeriod(historic.invoices,d.period);
+  const imported = historicalTotals(importedRows);
+  const combinedTaxable = (Number(d.totals.taxable) + imported.taxable).toFixed(2);
+  const combinedValue = (Number(d.totals.invoiceValue) + imported.value).toFixed(2);
   const { t } = await getT(d.business.preferredLanguage);
   const months = Array.from({ length: 12 }, (_, i) => {
     const base = new Date(`${d.period.start}T00:00:00Z`);
@@ -54,13 +57,13 @@ export default async function DashboardPage({ searchParams }: { searchParams: Pr
       </nav>
 
       <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
-        <Stat label={t("dash_total_sales")} value={formatINR(d.totals.taxable)} note={`${formatINR(d.totals.invoiceValue)} incl. GST`} />
-        <Stat label={t("dash_issued")} value={d.totals.issuedCount} />
-        <Stat label={t("dash_gst_collected")} value={formatINR(d.totals.gst)} note={t("dash_gst_note")} />
+        <Stat label="Recorded + imported B2B taxable sales" value={formatINR(combinedTaxable)} note={`${formatINR(combinedValue)} invoice value · imported history is partial`} />
+        <Link href={`/invoices?period=${d.period.key}`}><Stat label="Invoices recorded" value={d.totals.issuedCount + imported.count} note={`${d.totals.issuedCount} issued in Compte · ${imported.count} imported`} /></Link>
+        <Stat label="GST on Compte-issued invoices" value={formatINR(d.totals.gst)} note="Historical imported GST is not calculated from these files; this is not total tax liability." />
         <Link href="/invoices?status=DRAFT"><Stat label={t("dash_drafts")} value={d.totals.draftCount} note="All open drafts" /></Link>
       </div>
 
-      <Card><CardTitle>Imported GST return history · {d.period.label}</CardTitle><p className="mt-2 text-sm">{imported.count} historical invoices · {formatINR(imported.taxable.toFixed(2))} taxable · {formatINR(imported.value.toFixed(2))} invoice value</p><p className="mt-1 text-xs text-muted">Separate from new Compte sales above; import is not proof of filing or payment.</p><Link href="/invoices" className="text-sm font-semibold text-brand-700">View historical invoices →</Link></Card>
+      <Card><CardTitle>Imported GST return history · {d.period.label}</CardTitle><p className="mt-2 text-sm">{imported.count} historical invoices · {formatINR(imported.taxable.toFixed(2))} taxable · {formatINR(imported.value.toFixed(2))} invoice value</p><p className="mt-1 text-xs text-muted">Included in combined B2B taxable sales above, without counting them as newly issued Compte invoices. Import is not proof of filing or payment.</p><Link href={`/invoices?period=${d.period.key}`} className="text-sm font-semibold text-brand-700">View invoices for this month →</Link></Card>
       <div className="grid gap-5 lg:grid-cols-2">
         <Card>
           <div className="mb-3 flex items-center justify-between">
@@ -93,7 +96,7 @@ export default async function DashboardPage({ searchParams }: { searchParams: Pr
                 </li>
               ))}
             </ul>
-          ) : <Empty>No issued invoices in {d.period.label}.</Empty>}
+          ) : imported.count > 0 ? <p className="text-sm text-muted">{imported.count} historical B2B invoices imported for this month. View the invoice list for recipient GSTINs.</p> : <Empty>No invoice data in {d.period.label}.</Empty>}
         </Card>
       </div>
 
