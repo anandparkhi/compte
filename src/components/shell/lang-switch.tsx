@@ -9,11 +9,11 @@ export function LangSwitch({ lang }: { lang: UiLang }) {
   const [pending, start] = useTransition();
   return (
     <label className="flex items-center gap-1.5 text-sm text-muted">
-      <Languages className="size-4" aria-hidden />
+      <Languages className="hidden size-4 sm:block" aria-hidden />
       <span className="sr-only">Language</span>
       <select
         aria-label="Language"
-        className="h-9 rounded-lg border border-line bg-white px-2 text-sm text-ink"
+        className="h-9 max-w-[104px] rounded-lg border border-line bg-white px-1.5 text-[13px] sm:max-w-none sm:px-2 sm:text-sm text-ink"
         value={lang}
         disabled={pending}
         onChange={(e) => {

@@ -33,11 +33,11 @@ export default async function InvoicesPage({ searchParams }: { searchParams: Pro
   ...(tab==="ALL"||tab==="IMPORTED"?oldRows.map(i=>({id:i.id,date:invoiceDate(i.date),number:i.number,recipient:i.recipientGstin,amount:i.value.toFixed(2),kind:"IMPORTED",href:`/invoices/imported/${i.id.replace(":","/")}`})) : [])
  ].sort((a,b)=>b.date.localeCompare(a.date));
  return <div className="mx-auto max-w-5xl space-y-5">
-  <PageHeader title={t("invoices_title")} subtitle="One place for new invoices and imported historical records" actions={<LinkButton href="/invoices/new"><Plus className="size-4"/>{t("nav_create")}</LinkButton>}/>
-  <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
-   <Card className="p-3 sm:p-4"><p className="text-xs text-muted">Issued in Compte</p><p className="mt-1 text-xl font-bold">{newRows.filter(i=>i.status==="ISSUED").length}</p></Card>
-   <Card className="p-3 sm:p-4"><p className="text-xs text-muted">Imported history</p><p className="mt-1 text-xl font-bold">{oldRows.length}</p></Card>
-   <Card className="col-span-2 p-3 sm:col-span-1 sm:p-4"><p className="text-xs text-muted">Unfinished drafts</p><p className="mt-1 text-xl font-bold">{newRows.filter(i=>i.status==="DRAFT").length}</p></Card>
+  <PageHeader title={t("invoices_title")} subtitle={month?month.label:"Your sales records"} actions={<LinkButton href="/invoices/new"><Plus className="size-4"/>{t("nav_create")}</LinkButton>}/>
+  <div className="flex flex-wrap items-center gap-3 text-sm text-muted">
+   <span><b className="text-ink">{newRows.filter(i=>i.status==="ISSUED").length}</b> issued</span>
+   <span aria-hidden="true">·</span><span><b className="text-ink">{oldRows.length}</b> imported</span>
+   <span aria-hidden="true">·</span><span><b className="text-ink">{newRows.filter(i=>i.status==="DRAFT").length}</b> drafts</span>
   </div>
   <nav aria-label="Invoice type" className="flex gap-2 overflow-x-auto pb-1">
    {([{k:"ALL",name:"All invoices"},{k:"IMPORTED",name:"Imported"},{k:"ISSUED",name:"Issued in Compte"},{k:"DRAFT",name:"Drafts"},{k:"CANCELLED",name:"Cancelled"}] as const).map(x=><Link key={x.k} aria-current={tab===x.k?"page":undefined} href={links(x.k,sp.customer)} className={`shrink-0 rounded-full px-4 py-2 text-sm font-semibold ${tab===x.k?"bg-[#193e32] text-white":"bg-white ring-1 ring-line"}`}>{x.name}</Link>)}
@@ -52,6 +52,6 @@ export default async function InvoicesPage({ searchParams }: { searchParams: Pro
    {items.length?<ul className="divide-y divide-line">{items.map(i=><li key={i.kind+":"+i.id}><Link href={i.href} className="flex items-center justify-between gap-3 px-4 py-3.5 hover:bg-canvas"><div className="min-w-0 space-y-1"><p className="truncate font-semibold">{i.recipient}</p><p className="text-xs text-muted">{i.number} · {i.date}</p><Badge tone={i.kind==="IMPORTED"?"info":i.kind==="DRAFT"||i.kind==="CANCELLED"?"warn":"brand"}>{i.kind==="IMPORTED"?"Imported · read-only":i.kind==="DRAFT"?"Draft":i.kind==="CANCELLED"?"Cancelled · retained record":"Issued in Compte"}</Badge></div><div className="flex shrink-0 items-center gap-2"><b className="tabular text-sm">{formatINR(i.amount)}</b><ArrowRight className="size-4 text-brand-700"/></div></Link></li>)}</ul>
    : <div className="space-y-3 p-6"><Empty>No invoices match this view. An empty list does not mean you had no sales.</Empty><Link href="/gst-import" className="inline-flex items-center gap-2 text-sm font-semibold text-brand-700"><FileInput className="size-4"/>Import historical invoices →</Link></div>}
   </Card>
-  <p className="text-xs text-muted">Imported invoices are read-only records extracted from GST return files. They are not newly issued, verified as filed or confirmed paid. Review duplicates when combining imported and new figures.</p>
+  <details className="group border-t border-line pt-3 text-sm text-muted"><summary className="cursor-pointer py-2">About imported invoices</summary><p className="pb-2 leading-relaxed">Imported invoices are historical records, not new sales or confirmation of filing and payment. Their original PDFs are not available from a GSTR-1 upload.</p></details>
  </div>;
 }
