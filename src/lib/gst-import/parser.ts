@@ -29,7 +29,7 @@ export function parseGstr1(raw: unknown, expectedGstin: string): GstPreview {
       const invoice = obj(item); const number = text(invoice.inum);
       if (!number) { warnings.push("Skipped an invoice without a number"); continue; }
       const items = arr(invoice.itms);
-      invoices.push({ recipientGstin, number, date: text(invoice.idt), value: money(invoice.val), taxable: items.reduce((sum, i) => sum + money(obj(obj(i).itm_det).txval), 0) });
+      invoices.push({ recipientGstin, number, date: text(invoice.idt), value: money(invoice.val), taxable: items.reduce<number>((sum, i) => sum + money(obj(obj(i).itm_det).txval), 0) });
     }
   }
   const hsn: HsnSummary[] = [];
