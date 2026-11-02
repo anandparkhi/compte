@@ -52,7 +52,7 @@ function VoiceText({ L, uiLang, sttConfigured, llmConfigured }: { L: Labels; uiL
       // Safari records MP4/AAC; Chrome typically records WebM/Opus. Both are
       // decoded locally and converted to WAV before sending anything to Sarvam.
       const mimeType = typeof MediaRecorder.isTypeSupported === "function"
-        ? ["audio/webm;codecs=opus", "audio/mp4"].find((type) => MediaRecorder.isTypeSupported(type))
+        ? ["audio/mp4", "audio/webm;codecs=opus"].find((type) => MediaRecorder.isTypeSupported(type))
         : undefined;
       const r = new MediaRecorder(stream, mimeType ? { mimeType } : undefined);
       const chunks: Blob[] = [];
