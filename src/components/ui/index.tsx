@@ -26,7 +26,7 @@ export function LinkButton({ variant = "primary", size = "md", className, ...p }
 }
 
 export function Card({ className, ...p }: ComponentProps<"div">) {
-  return <div className={cn("rounded-[22px] border border-[#e8ebe5] bg-white/90 p-5 shadow-[0_8px_30px_-22px_rgba(20,48,38,.22)] sm:p-6", className)} {...p} />;
+  return <div className={cn("rounded-2xl border border-[#e8ebe5] bg-white p-4 sm:p-5", className)} {...p} />;
 }
 
 export function CardTitle({ className, ...p }: ComponentProps<"h2">) {
@@ -85,7 +85,7 @@ export function PageHeader({ title, subtitle, actions }: { title: ReactNode; sub
   return (
     <div className="mb-5 flex flex-wrap items-end justify-between gap-3">
       <div>
-        <h1 className="text-3xl font-semibold tracking-[-0.055em] text-ink sm:text-[38px]">{title}</h1>
+        <h1 className="text-[26px] font-semibold tracking-[-0.05em] text-ink sm:text-3xl">{title}</h1>
         {subtitle && <p className="mt-1 text-sm text-muted">{subtitle}</p>}
       </div>
       {actions && <div className="flex flex-wrap gap-2">{actions}</div>}
