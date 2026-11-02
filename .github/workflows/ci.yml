@@ -31,7 +31,8 @@ jobs:
       - run: npm install --no-audit --no-fund
       - run: npm run db:generate
       - run: npm run typecheck
-      - run: npx prisma migrate deploy
+      - name: Verify Vercel production migration step against temporary Postgres
+        run: VERCEL_ENV=production node scripts/vercel-deploy-migrations.mjs
       - run: npm test
       - run: npm run build
       - name: Verify PDF fonts are included in the serverless bundle
