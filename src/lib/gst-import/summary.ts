@@ -1,3 +1,4 @@
+import { invoiceMonthKey } from "./invoice-month";
 export type ImportSnapshot = {periodKey:string;records:string;createdAt:Date|string};
 export type HistoricalSummary = {
   periods:{period:string;invoiceCount:number;taxable:number;invoiceValue:number}[];
@@ -22,13 +23,15 @@ export function summarizeHistoricalImports(rows:ImportSnapshot[]):HistoricalSumm
    used.add(row.periodKey);
    let parsed:{invoices?:Invoice[];hsn?:Hsn[]};
    try {parsed=JSON.parse(row.records);}catch{warnings.push("An unreadable historical import was skipped.");continue;}
-   const p={period:row.periodKey,invoiceCount:0,taxable:0,invoiceValue:0};
    for(const inv of parsed.invoices??[]){
      if(!inv.recipientGstin||!inv.number)continue;
-     const key=[row.periodKey,inv.recipientGstin,inv.number].join("|");
+     const month=invoiceMonthKey(inv.date,row.periodKey);
+     const key=[month,inv.recipientGstin,inv.number].join("|");
      if(invoices.has(key))continue;
      invoices.set(key,inv);
+     const p=periods.get(month)??{period:month,invoiceCount:0,taxable:0,invoiceValue:0};
      p.invoiceCount++;p.taxable+=n(inv.taxable);p.invoiceValue+=n(inv.value);
+     periods.set(month,p);
      const c=customers.get(inv.recipientGstin)??{gstin:inv.recipientGstin,value:0,invoices:0};
      c.value+=n(inv.value);c.invoices++;customers.set(inv.recipientGstin,c);
    }
@@ -38,7 +41,7 @@ export function summarizeHistoricalImports(rows:ImportSnapshot[]):HistoricalSumm
      const entry=hsn.get(key)??{hsn:key,description:item.description??"",taxable:0};
      entry.taxable+=n(item.taxable);hsn.set(key,entry);
    }
-   periods.set(row.periodKey,p);
+   if(!(parsed.invoices??[]).length && (parsed.hsn??[]).length && !periods.has(row.periodKey)) periods.set(row.periodKey,{period:row.periodKey,invoiceCount:0,taxable:0,invoiceValue:0});
  }
  const values=[...periods.values()].sort((a,b)=>a.period.slice(2).localeCompare(b.period.slice(2))||a.period.slice(0,2).localeCompare(b.period.slice(0,2)));
  warnings.unshift("Based only on imported GSTR-1 B2B invoice rows; excludes B2C, amendments, credit notes and unimported periods.");
