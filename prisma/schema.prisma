@@ -82,6 +82,7 @@ model Business {
   filingEvidence   FilingEvidence[]
   inwardSupplies   InwardSupply[]
   auditLogs        AuditLog[]
+  gstImports      GstHistoricalImport[]
   payments         InvoicePayment[]
   bankTransactions BankImportTransaction[]
 }
