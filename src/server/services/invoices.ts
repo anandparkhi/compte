@@ -249,8 +249,21 @@ export async function removeInvoice(ctx: Ctx, invoiceId: string) {
     ]);
     if (payments > 0) throw new AppError(409,"PAYMENT_EXISTS","This invoice has recorded payments. Reconcile the payment and use a formal credit note or accountant-assisted correction instead.");
     if (sent > 0) throw new AppError(409,"ALREADY_SENT","This invoice was emailed to a customer. Do not cancel it silently; use a credit note or consult your accountant.");
+    // A return export may already have been downloaded; don't silently change its underlying invoice set.
+    const business = await tx.business.findUniqueOrThrow({where:{id:ctx.businessId},select:{filingFrequency:true}});
+    const period = periodForDate(toDateString(invoice.invoiceDate),business.filingFrequency as FilingFrequency);
+    const exports = await tx.returnBatch.count({where:{businessId:ctx.businessId,returnType:"GSTR1",periodKey:period.key,status:"INTERNAL_DRAFT_EXPORTED"}});
+    if(exports > 0) throw new AppError(409,"RETURN_ALREADY_EXPORTED","The GST return draft for this period was already exported. Review and revise the return with your accountant before cancelling this invoice.");
     // The original invoice number, snapshot and integrity hash remain unchanged.
-    await tx.invoice.update({where:{id:invoiceId},data:{status:"CANCELLED"}});
+    try {
+      await tx.invoice.update({where:{id:invoiceId},data:{status:"CANCELLED"}});
+    } catch (error) {
+      const cause=error instanceof Error?error.message:"";
+      if(/Issued invoices are immutable|Issued\/cancelled invoices|immutable except safe cancellation/i.test(cause)){
+        throw new AppError(503,"DATABASE_MIGRATION_REQUIRED","Invoice cancellation is not enabled in the live database yet. Ask the administrator to apply the pending Prisma migration and redeploy.");
+      }
+      throw error;
+    }
     await audit({businessId:ctx.businessId,userId:ctx.userId,action:"INVOICE_CANCELLED",entityType:"Invoice",entityId:invoiceId,metadata:{invoiceNumber:invoice.invoiceNumber,grandTotal:invoice.grandTotal}},tx);
     return { action:"CANCELLED" as const };
   });

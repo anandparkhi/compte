@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "next dev -p 3000",
-    "build": "prisma generate && next build",
+    "build": "prisma generate && node scripts/vercel-deploy-migrations.mjs && next build",
     "start": "next start -p 3000",
     "typecheck": "tsc --noEmit",
     "db:generate": "prisma generate",

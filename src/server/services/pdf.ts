@@ -1,6 +1,6 @@
 import "server-only";
 import path from "node:path";
-import { readFileSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import PDFDocument from "pdfkit";
 import { brand } from "@/lib/config/brand";
 import { formatIndianNumber } from "@/lib/domain/money";
@@ -11,15 +11,31 @@ import type { InvoiceSnapshot } from "./invoices";
 
 const FONT_DIR = path.join(process.cwd(), "assets", "fonts");
 // Noto Sans Devanagari covers Latin, Devanagari and ₹, so names in any of our languages render.
-const REG = path.join(FONT_DIR, "NotoSansDevanagari_400Regular.ttf");
-const BOLD = path.join(FONT_DIR, "NotoSansDevanagari_700Bold.ttf");
 
 const INK = "#1c2321", MUTED = "#5d6b66", LINE = "#d9e0dd", ACCENT = "#1f6f5c", SOFT = "#eef4f1";
 
+function resolveFont(name: string): Buffer | null {
+  // Output-file tracing may place assets at a different root inside Vercel.
+  const locations = [
+    path.join(FONT_DIR, name),
+    path.join("/var/task/assets/fonts", name),
+    path.join(process.cwd(), ".next/server/assets/fonts", name),
+    path.join(process.cwd(), ".next/assets/fonts", name),
+  ];
+  for (const location of locations) {
+    try { if (existsSync(location)) return readFileSync(location); } catch { /* try next location */ }
+  }
+  console.error("[compte:pdf] Font unavailable in runtime bundle:", name, "cwd:", process.cwd());
+  return null;
+}
+
 function newDoc(title: string) {
   const doc = new PDFDocument({ size: "A4", margin: 36, info: { Title: title, Producer: brand.name, Creator: brand.name } });
-  doc.registerFont("R", readFileSync(REG));
-  doc.registerFont("B", readFileSync(BOLD));
+  const regular = resolveFont("NotoSansDevanagari_400Regular.ttf");
+  const bold = resolveFont("NotoSansDevanagari_700Bold.ttf");
+  if (!regular || !bold) throw new Error("PDF_RUNTIME_FONTS_MISSING");
+  doc.registerFont("R", regular);
+  doc.registerFont("B", bold);
   doc.font("R").fillColor(INK);
   return doc;
 }
@@ -36,7 +52,7 @@ function toBuffer(doc: PDFKit.PDFDocument): Promise<Buffer> {
 
 const inr = (v: string) => formatIndianNumber(v);
 
-export async function renderInvoicePdf(s: InvoiceSnapshot, cancelled = false): Promise<Buffer> {
+async function renderInvoicePdfFull(s: InvoiceSnapshot, cancelled = false): Promise<Buffer> {
   const doc = newDoc(`Tax Invoice ${s.invoiceNumber}`);
   const W = doc.page.width - 72;
   const X = 36;
@@ -162,6 +178,73 @@ export async function renderInvoicePdf(s: InvoiceSnapshot, cancelled = false): P
     X, 800, { width: W, align: "center" },
   );
   return toBuffer(doc);
+}
+
+/**
+ * A robust emergency PDF path for serverless font/PDFKit rendering failures.
+ * All financial and supplier/buyer fields remain visible; names in scripts outside
+ * Helvetica's encoding may need correction, hence the prominent warning.
+ */
+export async function renderInvoicePdfFallback(s: InvoiceSnapshot, cancelled: boolean): Promise<Buffer> {
+  let doc: PDFKit.PDFDocument;
+  let unicodeFonts = true;
+  try { doc = newDoc(`Tax Invoice ${s.invoiceNumber}`); }
+  catch {
+    unicodeFonts = false;
+    doc = new PDFDocument({size:"A4",margin:42,info:{Title:`Tax Invoice ${s.invoiceNumber}`,Producer:brand.name}});
+  }
+  const regular = unicodeFonts ? "R" : "Helvetica";
+  const bold = unicodeFonts ? "B" : "Helvetica-Bold";
+  const usable = (value: unknown) => unicodeFonts ? String(value ?? "") : String(value ?? "").replace(/[^\x20-\x7E]/g,"?");
+  const write = (label:string, value:unknown) => {
+    if (doc.y > 710) doc.addPage();
+    doc.font(bold).fontSize(9).text(label,{continued:true});
+    doc.font(regular).fontSize(9).text(" "+usable(value));
+    doc.moveDown(0.25);
+  };
+  doc.font(bold).fontSize(18).text(cancelled?"CANCELLED INVOICE COPY":"TAX INVOICE");
+  doc.moveDown(0.4);
+  doc.font(bold).fontSize(9).fillColor("#a33528").text(unicodeFonts ? "Simplified invoice copy generated from the verified issued record." : "Limited-font fallback: check customer names and script characters against the original invoice record.");
+  doc.fillColor("#222222").moveDown(0.8);
+  write("Invoice number:",s.invoiceNumber);
+  write("Invoice date:",s.invoiceDate);
+  write("Supplier:",s.supplier.legalName);
+  write("Supplier GSTIN:",s.supplier.gstin);
+  write("Supplier address:",s.supplier.address);
+  write("Customer:",s.recipient.name);
+  write("Customer GSTIN:",s.recipient.gstin ?? "Unregistered");
+  write("Customer address:",s.recipient.billingAddress);
+  write("Place of supply:",`${s.placeOfSupply.stateName} (${s.placeOfSupply.stateCode})`);
+  write("Supply:",s.supplyType === "INTRA" ? "Intra-state" : "Inter-state");
+  doc.moveDown(0.6).font("Helvetica-Bold").fontSize(11).text("ITEMS");
+  for(const line of s.lines) {
+    if(doc.y>690)doc.addPage();
+    doc.moveDown(0.3);
+    doc.font(bold).fontSize(9).text(`${line.position}. ${usable(line.description)}  [HSN/SAC ${usable(line.hsnSac)}]`);
+    doc.font(regular).fontSize(9).text(`Qty: ${usable(line.quantity)} ${usable(line.unit)}, rate: INR ${line.unitPrice}, GST: ${line.gstRate}%, taxable: INR ${line.taxableValue}, line total: INR ${line.lineTotal}`);
+    doc.fontSize(8).text(`CGST: INR ${line.cgst}, SGST/UTGST: INR ${line.sgst}, IGST: INR ${line.igst}`);
+  }
+  if(doc.y>650)doc.addPage();
+  doc.moveDown(1).font("Helvetica-Bold").fontSize(11).text("TOTALS");
+  for(const [label,val] of [
+    ["Taxable value",s.totals.taxableTotal],["CGST",s.totals.cgstTotal],["SGST/UTGST",s.totals.sgstTotal],
+    ["IGST",s.totals.igstTotal],["Grand total",s.totals.grandTotal]
+  ])write(label,`INR ${val}`);
+  write("Amount in words:",s.amountInWords);
+  write("Authorised signatory:",s.signatory.name);
+  if(s.isDemo) doc.font(bold).fontSize(10).text("DEMO - NOT A REAL INVOICE");
+  if(cancelled)doc.font(bold).fontSize(10).text("CANCELLED - FOR RECORDS ONLY");
+  return toBuffer(doc);
+}
+
+export async function renderInvoicePdf(s: InvoiceSnapshot, cancelled = false): Promise<Buffer> {
+  try {
+    return await renderInvoicePdfFull(s, cancelled);
+  } catch (e) {
+    // Log the exact cause in Vercel, not to the browser or PDF URL.
+    console.error("[compte:pdf] Full invoice PDF render failed; using fallback:",e);
+    return renderInvoicePdfFallback(s,cancelled);
+  }
 }
 
 export interface FilingReportData {

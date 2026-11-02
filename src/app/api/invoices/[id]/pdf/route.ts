@@ -1,4 +1,4 @@
-import { errorResponse } from "@/server/errors";
+import { AppError, errorResponse } from "@/server/errors";
 import { requireApiContext } from "@/server/auth/session";
 import { getInvoiceForDocument } from "@/server/services/invoices";
 import { renderInvoicePdf } from "@/server/services/pdf";
@@ -21,6 +21,8 @@ export async function GET(req: Request, { params }: { params: Promise<{ id: stri
       },
     });
   } catch (e) {
-    return errorResponse(e);
+    if (e instanceof AppError) return errorResponse(e);
+    console.error("[compte:pdf] Invoice PDF endpoint error:", e);
+    return errorResponse(new AppError(503, "PDF_UNAVAILABLE", "The invoice PDF could not be generated on the server. Check Vercel function logs for [compte:pdf] and contact support."));
   }
 }
