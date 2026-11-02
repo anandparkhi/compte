@@ -43,8 +43,8 @@ export function BottomNav({ labels }: { labels: NavLabels }) {
       <ul className="grid grid-cols-5">
         {items(labels).filter((i) => i.mobile).map((it) => (
           <li key={it.href}>
-            <Link href={it.href} className={cn("flex h-16 flex-col items-center justify-center gap-0.5 text-[11px] font-medium", isActive(path, it.href) ? "text-brand-700" : "text-muted")}>
-              {it.primary ? <span className="-mt-6 grid size-12 place-items-center rounded-full bg-brand-600 text-white shadow-lg"><it.icon className="size-6" aria-hidden /></span> : <it.icon className="size-5" aria-hidden />}
+            <Link href={it.href} className={cn("flex h-[60px] flex-col items-center justify-center gap-1 text-[11px] font-medium", isActive(path, it.href) ? "text-brand-700" : "text-muted")}>
+              {it.primary ? <span className="-mt-3 grid size-10 place-items-center rounded-full bg-brand-600 text-white shadow-lg"><it.icon className="size-5" aria-hidden /></span> : <it.icon className="size-5" aria-hidden />}
               <span className="max-w-full truncate px-1">{it.primary ? it.shortLabel : it.label}</span>
             </Link>
           </li>
