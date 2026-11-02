@@ -82,6 +82,8 @@ model Business {
   filingEvidence   FilingEvidence[]
   inwardSupplies   InwardSupply[]
   auditLogs        AuditLog[]
+  payments         InvoicePayment[]
+  bankTransactions BankImportTransaction[]
 }
 
 model AuthorizedBusinessUser {
@@ -192,6 +194,7 @@ model Invoice {
 
   lineItems       InvoiceLineItem[]
   emailDeliveries EmailDelivery[]
+  payments        InvoicePayment[]
 
   @@unique([businessId, invoiceNumber])
   @@unique([businessId, idempotencyKey])
@@ -423,4 +426,35 @@ model GstHistoricalImport {
   createdAt  DateTime @default(now())
   @@unique([businessId, sourceHash])
   @@index([businessId, periodKey])
+}
+
+model BankImportTransaction {
+  id          String   @id @default(cuid())
+  businessId  String
+  business    Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  fingerprint String
+  date        DateTime
+  amount      String
+  reference   String
+  narration   String
+  createdAt   DateTime @default(now())
+  payment     InvoicePayment?
+  @@unique([businessId, fingerprint])
+  @@index([businessId, date])
+}
+
+model InvoicePayment {
+  id                String   @id @default(cuid())
+  businessId        String
+  business          Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  invoiceId         String
+  invoice           Invoice  @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+  amount            String
+  receivedAt        DateTime
+  reference         String?
+  source            String
+  bankTransactionId String? @unique
+  bankTransaction   BankImportTransaction? @relation(fields: [bankTransactionId], references: [id])
+  createdAt         DateTime @default(now())
+  @@index([businessId, invoiceId])
 }
