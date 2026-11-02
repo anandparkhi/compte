@@ -31,7 +31,7 @@ export default async function DashboardPage({ searchParams }: { searchParams: Pr
 
   const importedRows = inReturnPeriod(historic.invoices, d.period);
   const imported = historicalTotals(importedRows);
-  const buyers = new Set(importedRows.map(i => i.recipientGstin)).size;
+  const buyers = new Set([...d.buyerKeys,...importedRows.map(i=>i.recipientGstin)]).size;
   const copy = ownerCopy(d.business.preferredLanguage);
   const combinedTaxable = (Number(d.totals.taxable) + imported.taxable).toFixed(2);
   const combinedValue = (Number(d.totals.invoiceValue) + imported.value).toFixed(2);
@@ -78,7 +78,7 @@ export default async function DashboardPage({ searchParams }: { searchParams: Pr
           <Link href={monthUrl}><Stat label={copy.taxable} value={formatINR(combinedTaxable)} note={`${imported.count} historical · ${d.totals.issuedCount} new invoices`} /></Link>
           <Link href={monthUrl}><Stat label={copy.invoiceValue} value={formatINR(combinedValue)} note={copy.invoiceAmountNote} /></Link>
           <Link href={monthUrl}><Stat label={copy.count} value={invoicesCount} note={`Imported ${imported.count} · Compte ${d.totals.issuedCount}`} /></Link>
-          <Link href={monthUrl}><Stat label={copy.buyers} value={buyers} note={imported.count ? copy.buyersNote : copy.noHistoricalBuyers} /></Link>
+          <Link href={monthUrl}><Stat label={copy.buyers} value={buyers} note={copy.buyersNote} /></Link>
         </div>
         <p className="text-xs text-muted">{copy.taxableNote}{overlaps>0 ? ` ${overlaps} overlapping historical invoice(s) were excluded from these totals.` : ""}</p>
         <Card>
