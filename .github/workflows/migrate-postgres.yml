@@ -1,0 +1,38 @@
+name: Initialize Compte PostgreSQL database
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  migrate:
+    runs-on: ubuntu-latest
+    environment: database-migration
+    env:
+      DIRECT_URL: ${{ secrets.COMPTE_DATABASE_URL }}
+      DATABASE_URL: ${{ secrets.COMPTE_DATABASE_URL }}
+    steps:
+      - name: Check database connection is configured
+        run: |
+          if [ -z "$DIRECT_URL" ]; then
+            echo "::error::Set COMPTE_DATABASE_URL in the database-migration GitHub environment secrets."
+            exit 1
+          fi
+          case "$DIRECT_URL" in
+            postgresql://*|postgres://*) ;;
+            *) echo "::error::COMPTE_DATABASE_URL must be a PostgreSQL URL."; exit 1 ;;
+          esac
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Install Prisma dependencies
+        run: npm install --no-audit --no-fund
+      - name: Check migration status
+        run: npx prisma migrate status
+      - name: Apply version-controlled migrations
+        run: npx prisma migrate deploy
+      - name: Verify migration status
+        run: npx prisma migrate status
