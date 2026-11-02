@@ -25,7 +25,7 @@ const english = {
  taxableNote:"Imported B2B data may omit sales and amendments. Review overlaps with Compte invoices. Invoice value is not cash received or profit.",
  taxNew:"GST calculated on Compte-issued invoices", taxNewNote:"Excludes imported GST; not total tax payable.",
  importedActivity:"historical", newActivity:"new", noHistoricalBuyers:"No historical buyers this month",
- period:"Period", verify:"Filing not verified"
+ trend:"Recorded sales over six months", trendNote:"These bars show only recorded sales. A missing month may mean no return was imported.", period:"Period", verify:"Filing not verified"
 };
 const hindi:typeof english = {
  homeTitle:"आपके कारोबार का संक्षिप्त हाल",
@@ -49,7 +49,7 @@ const hindi:typeof english = {
  taxableNote:"आयातित B2B रिकॉर्ड में कुछ बिक्री या संशोधन छूट सकते हैं। पुराने और नए रिकॉर्ड मिलान करें। बिल की राशि प्राप्त भुगतान या लाभ नहीं है।",
  taxNew:"Compte में जारी बिलों पर GST", taxNewNote:"इसमें आयातित GST शामिल नहीं; यह कुल देय कर नहीं है।",
  importedActivity:"पुराने", newActivity:"नए", noHistoricalBuyers:"इस महीने पुराने ग्राहक नहीं मिले",
- period:"अवधि", verify:"फाइलिंग सत्यापित नहीं"
+ trend:"छह महीनों की दर्ज बिक्री", trendNote:"ये केवल दर्ज बिक्री के आंकड़े हैं। जिस महीने रिकॉर्ड नहीं है, संभव है उसका रिटर्न आयात न हुआ हो।", period:"अवधि", verify:"फाइलिंग सत्यापित नहीं"
 };
 const marathi:typeof english = {
  homeTitle:"तुमच्या व्यवसायाचा थोडक्यात आढावा",
@@ -73,7 +73,7 @@ const marathi:typeof english = {
  taxableNote:"आयात केलेल्या B2B नोंदींमध्ये काही विक्री किंवा दुरुस्त्या नसू शकतात. जुन्या व नव्या नोंदी तपासा. बिलाची रक्कम म्हणजे मिळालेले पैसे किंवा नफा नाही.",
  taxNew:"Compte मध्ये जारी बिलांवरील GST", taxNewNote:"आयातित GST यात नाही; हा एकूण देय कर नाही.",
  importedActivity:"जुनी", newActivity:"नवी", noHistoricalBuyers:"या महिन्यात जुने ग्राहक नाहीत",
- period:"कालावधी", verify:"फाइलिंग पडताळलेली नाही"
+ trend:"सहा महिन्यांची नोंदवलेली विक्री", trendNote:"हे फक्त नोंदवलेल्या विक्रीचे आकडे आहेत. माहिती नसलेल्या महिन्याचा रिटर्न आयात झालेला नसेल.", period:"कालावधी", verify:"फाइलिंग पडताळलेली नाही"
 };
 export const ownerLanguages = { en: english, hi: hindi, mr: marathi };
 export function ownerCopy(language:string){return ownerLanguages[language==="hi"?"hi":language==="mr"?"mr":"en"];}
