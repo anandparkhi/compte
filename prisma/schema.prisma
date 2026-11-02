@@ -409,3 +409,18 @@ model AuditLog {
 
   @@index([businessId, createdAt])
 }
+
+model GstHistoricalImport {
+  id         String   @id @default(cuid())
+  businessId String
+  business   Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  sourceHash String
+  returnType String
+  periodKey  String
+  sourceName String
+  summary    String
+  records    String
+  createdAt  DateTime @default(now())
+  @@unique([businessId, sourceHash])
+  @@index([businessId, periodKey])
+}
