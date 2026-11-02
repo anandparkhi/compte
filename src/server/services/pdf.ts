@@ -30,7 +30,7 @@ function resolveFont(name: string): Buffer | null {
 }
 
 function newDoc(title: string) {
-  const doc = new PDFDocument({ size: "A4", margin: 36, font: null, info: { Title: title, Producer: brand.name, Creator: brand.name } });
+  const doc = new PDFDocument({ size: "A4", margin: 36, font: null as unknown as string, info: { Title: title, Producer: brand.name, Creator: brand.name } });
   const regular = resolveFont("NotoSansDevanagari_400Regular.ttf");
   const bold = resolveFont("NotoSansDevanagari_700Bold.ttf");
   if (!regular || !bold) throw new Error("PDF_RUNTIME_FONTS_MISSING");
