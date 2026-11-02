@@ -11,8 +11,6 @@ import type { InvoiceSnapshot } from "./invoices";
 
 const FONT_DIR = path.join(process.cwd(), "assets", "fonts");
 // Noto Sans Devanagari covers Latin, Devanagari and ₹, so names in any of our languages render.
-const REG = path.join(FONT_DIR, "NotoSansDevanagari_400Regular.ttf");
-const BOLD = path.join(FONT_DIR, "NotoSansDevanagari_700Bold.ttf");
 
 const INK = "#1c2321", MUTED = "#5d6b66", LINE = "#d9e0dd", ACCENT = "#1f6f5c", SOFT = "#eef4f1";
 
@@ -189,7 +187,7 @@ async function renderInvoicePdfFull(s: InvoiceSnapshot, cancelled = false): Prom
  */
 async function renderInvoicePdfFallback(s: InvoiceSnapshot, cancelled: boolean): Promise<Buffer> {
   const doc = new PDFDocument({size:"A4",margin:42,info:{Title:`Tax Invoice ${s.invoiceNumber}`,Producer:brand.name}});
-  const usable = (value: unknown) => String(value ?? "").replace(/[^\\x20-\\x7E]/g,"?");
+  const usable = (value: unknown) => String(value ?? "").replace(/[^\x20-\x7E]/g,"?");
   const write = (label:string, value:unknown) => {
     if (doc.y > 710) doc.addPage();
     doc.font("Helvetica-Bold").fontSize(9).text(label,{continued:true});
