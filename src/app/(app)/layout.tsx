@@ -30,17 +30,17 @@ export default async function AppLayout({ children }: { children: React.ReactNod
           <p className="mt-auto px-2 text-xs text-muted">{brand.tagline}</p>
         </aside>
         <div className="min-w-0 flex-1">
-          <header className="sticky top-0 z-20 flex h-[76px] items-center justify-between gap-3 border-b border-[#e9ede7] bg-[#f9faf7]/90 px-4 backdrop-blur sm:px-6">
+          <header className="sticky top-0 z-20 flex h-[62px] sm:h-[76px] items-center justify-between gap-3 border-b border-[#e9ede7] bg-[#f9faf7]/95 px-4 backdrop-blur sm:px-6">
             <div className="min-w-0">
-              <p className="truncate text-sm font-bold leading-tight">{business.tradeName || business.legalName}</p>
-              <p className="truncate text-xs text-muted">GSTIN {maskGstin(business.gstin)} · {business.filingFrequency === "MONTHLY" ? "Monthly" : "Quarterly"}</p>
+              <p className="truncate text-[13px] font-semibold leading-tight sm:text-sm">{business.tradeName || business.legalName}</p>
+              <p className="truncate text-xs text-muted"><span className="sm:hidden">{business.filingFrequency === "MONTHLY" ? "Monthly" : "Quarterly"} GST</span><span className="hidden sm:inline">GSTIN {maskGstin(business.gstin)} · {business.filingFrequency === "MONTHLY" ? "Monthly" : "Quarterly"}</span></p>
             </div>
             <div className="flex items-center gap-1">
               <LangSwitch lang={lang} />
               <LogoutButton label={t("logout")} />
             </div>
           </header>
-          <main className="px-5 pb-28 pt-8 sm:px-8 lg:px-11 lg:pb-16 lg:pt-10">{children}</main>
+          <main className="px-4 pb-[calc(88px+env(safe-area-inset-bottom))] pt-5 sm:px-8 sm:pt-8 lg:px-11 lg:pb-16 lg:pt-9">{children}</main>
         </div>
       </div>
       <BottomNav labels={labels} />
