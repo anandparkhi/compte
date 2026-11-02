@@ -1,7 +1,7 @@
 /** Short, reusable owner-facing UI labels. Extend with a new locale here. */
 const en={
  overview:"Business overview",newInvoice:"New invoice",latestActivity:"Latest activity",salesSummary:"Recorded sales summary",
- salesRecorded:"Sales recorded",invoices:"invoices",imported:"Imported",historicalBills:"Historical invoices",issued:"Issued here",newBills:"New Compte invoices",
+ salesRecorded:"Invoice value (incl. GST)",invoices:"invoices",imported:"Imported",historicalBills:"Historical invoices",issued:"Issued here",newBills:"New Compte invoices",
  gstStatus:"GST return",importedNotVerified:"Data imported · filing not verified",notVerified:"Filing status not verified",
  seeRecords:"View invoices",allCustomers:"View all",customer:"Customer",aboutFigures:"About these numbers",overlaps:"duplicates excluded",
  returnTitle:"GST returns",returnSubtitle:"Sales records by filing period",returnHelp:"About filing status",returnHelpDetail:"An imported return is not proof that it was filed. Verify submission on the GST portal. No recorded sales does not automatically mean a nil return.",
@@ -16,7 +16,7 @@ const en={
 };
 const hi:typeof en={
  overview:"कारोबार का हाल",newInvoice:"नया बिल",latestActivity:"हाल की बिक्री",salesSummary:"बिक्री का सारांश",
- salesRecorded:"दर्ज बिक्री",invoices:"बिल",imported:"आयातित",historicalBills:"पुराने बिल",issued:"नए बिल",newBills:"Compte में बने बिल",
+ salesRecorded:"बिल की राशि (GST सहित)",invoices:"बिल",imported:"आयातित",historicalBills:"पुराने बिल",issued:"नए बिल",newBills:"Compte में बने बिल",
  gstStatus:"GST रिटर्न",importedNotVerified:"डेटा आया · फाइलिंग की पुष्टि नहीं",notVerified:"फाइलिंग की पुष्टि नहीं",
  seeRecords:"बिल देखें",allCustomers:"सभी देखें",customer:"ग्राहक",aboutFigures:"आंकड़ों की जानकारी",overlaps:"दोहराए रिकॉर्ड हटाए गए",
  returnTitle:"GST रिटर्न",returnSubtitle:"फाइलिंग अवधि के अनुसार बिक्री",returnHelp:"फाइलिंग स्थिति",returnHelpDetail:"रिटर्न अपलोड होने से सरकारी पोर्टल पर फाइल होने की पुष्टि नहीं होती। GST पोर्टल पर जांचें। बिक्री दर्ज न होना nil रिटर्न का प्रमाण नहीं है।",
@@ -31,7 +31,7 @@ const hi:typeof en={
 };
 const mr:typeof en={
  overview:"व्यवसायाचा आढावा",newInvoice:"नवीन बिल",latestActivity:"अलीकडील विक्री",salesSummary:"विक्रीचा सारांश",
- salesRecorded:"नोंदवलेली विक्री",invoices:"बिले",imported:"आयात केलेले",historicalBills:"जुनी बिले",issued:"नवीन बिले",newBills:"Compte मध्ये बनलेली",
+ salesRecorded:"बिलांची रक्कम (GST सह)",invoices:"बिले",imported:"आयात केलेले",historicalBills:"जुनी बिले",issued:"नवीन बिले",newBills:"Compte मध्ये बनलेली",
  gstStatus:"GST रिटर्न",importedNotVerified:"डेटा आयात · फाइलिंग पडताळलेले नाही",notVerified:"फाइलिंग पडताळलेले नाही",
  seeRecords:"बिले पाहा",allCustomers:"सर्व पाहा",customer:"ग्राहक",aboutFigures:"आकड्यांबद्दल",overlaps:"दुबार नोंदी वगळल्या",
  returnTitle:"GST रिटर्न",returnSubtitle:"फाइलिंग कालावधीनुसार विक्री",returnHelp:"फाइलिंग स्थिती",returnHelpDetail:"रिटर्न आयात केल्याने GST पोर्टलवर फाइल झाल्याची खात्री होत नाही. पोर्टलवर तपासा. विक्रीच्या नोंदी नसणे म्हणजे nil रिटर्न नाही.",
