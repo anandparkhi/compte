@@ -3,8 +3,8 @@ import type { NextConfig } from "next";
 const nextConfig: NextConfig = {
   serverExternalPackages: ["better-sqlite3", "@prisma/adapter-better-sqlite3", "pdfkit", "fontkit"],
   outputFileTracingIncludes: {
-    "/api/**/*": ["./assets/fonts/**/*"],
-    "/api/invoices/[id]/pdf": ["./assets/fonts/**/*"],
+    "/api/**/*": ["./assets/fonts/**/*", "./node_modules/pdfkit/js/data/**/*", "./node_modules/pdfkit/js/standard-fonts/**/*"],
+    "/api/invoices/[id]/pdf": ["./assets/fonts/**/*", "./node_modules/pdfkit/js/data/**/*", "./node_modules/pdfkit/js/standard-fonts/**/*"],
   },
   poweredByHeader: false,
   async headers() {
