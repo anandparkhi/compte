@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { prisma } from "@/server/db";
 import { createDraftFromText, discardDraft, getInvoiceForDocument, getInvoiceView, issueInvoice, listInvoices, readVerifiedSnapshot, updateDraft } from "@/server/services/invoices";
-import { renderInvoicePdf } from "@/server/services/pdf";
+import { renderInvoicePdf, renderInvoicePdfFallback } from "@/server/services/pdf";
 import { gstr1Preparation, exportGstr1InternalDraft, periodSummaries } from "@/server/services/returns";
 import { dashboard } from "@/server/services/dashboard";
 import { emailInvoice } from "@/server/services/email";
@@ -94,6 +94,21 @@ describe("13. PDF generation", () => {
     const t = await makeBusiness();
     const d = await createDraftFromText(t.ctx, { text: "BILL RAMESH 2 BOX 500 GST18", source: "TEXT" });
     await expect(getInvoiceForDocument(t.ctx, d.id)).rejects.toMatchObject({ code: "NOT_ISSUED" });
+  });
+});
+
+describe("Production PDF recovery", () => {
+  it("renders a valid multilingual invoice copy using the fallback layout", async () => {
+    const t = await makeBusiness();
+    const c = await createCustomer(t.ctx, {
+      name: "श्री गणेश ट्रेडर्स", aliases: [], registrationStatus: "UNREGISTERED",
+      stateCode: "27", billingAddress: "पुणे 411001",
+    });
+    const inv = await issueFor(t, "2026-10-05", c, [{ productId: t.box.id, quantity: "2", unitPrice: "500" }]);
+    const { snapshot } = await getInvoiceForDocument(t.ctx, inv.id);
+    const pdf = await renderInvoicePdfFallback(snapshot, false);
+    expect(pdf.subarray(0,5).toString()).toBe("%PDF-");
+    expect(pdf.length).toBeGreaterThan(1000);
   });
 });
 
