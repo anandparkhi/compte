@@ -1,0 +1,411 @@
+// Compte — data model.
+// Money, quantities and rates are stored as exact decimal STRINGS ("11800.00") and
+// computed with decimal.js. This keeps SQLite exact; on PostgreSQL these columns can be
+// migrated to NUMERIC(18,2) without changing application semantics.
+// Enumerations are stored as strings (validated by Zod in src/lib/domain) for SQLite/Postgres portability.
+
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "sqlite"
+}
+
+model User {
+  id           String                   @id @default(cuid())
+  email        String                   @unique
+  name         String
+  passwordHash String
+  createdAt    DateTime                 @default(now())
+  updatedAt    DateTime                 @updatedAt
+  memberships  AuthorizedBusinessUser[]
+  sessions     Session[]
+}
+
+model Session {
+  id               String   @id @default(cuid())
+  tokenHash        String   @unique
+  userId           String
+  user             User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  activeBusinessId String?
+  expiresAt        DateTime
+  createdAt        DateTime @default(now())
+
+  @@index([userId])
+}
+
+model Business {
+  id                      String    @id @default(cuid())
+  legalName               String
+  tradeName               String?
+  gstin                   String    @unique
+  // FORMAT_VALID_UNVERIFIED | LIVE_VERIFIED (only from an authorised data source)
+  gstinVerificationStatus String    @default("FORMAT_VALID_UNVERIFIED")
+  addressLine             String
+  city                    String
+  pincode                 String
+  stateCode               String
+  contactPerson           String
+  phone                   String
+  email                   String
+  // REGULAR | COMPOSITION | CASUAL | SEZ_UNIT | SEZ_DEVELOPER
+  registrationType        String    @default("REGULAR")
+  // MONTHLY | QUARTERLY
+  filingFrequency         String    @default("MONTHLY")
+  // e.g. "2026-27" — the financial year the business set up Compte for
+  financialYear           String
+  eInvoiceMandatory       Boolean   @default(false)
+  // en | hi | mr
+  preferredLanguage       String    @default("en")
+  invoicePrefix           String
+  signatoryName           String
+  signatoryDesignation    String    @default("Proprietor")
+  // DECLARED_YES | DECLARED_NO | UNKNOWN — user's declaration; never verified by Compte
+  phoneIsGstnRegistered   String    @default("UNKNOWN")
+  phoneDeclarationAt      DateTime?
+  isDemo                  Boolean   @default(false)
+  createdAt               DateTime  @default(now())
+  updatedAt               DateTime  @updatedAt
+
+  members          AuthorizedBusinessUser[]
+  customers        Customer[]
+  products         Product[]
+  invoices         Invoice[]
+  sequences        InvoiceNumberSequence[]
+  inboundMessages  InboundMessage[]
+  emailDeliveries  EmailDelivery[]
+  returnBatches    ReturnBatch[]
+  nilFilings       NilReturnFiling[]
+  nilAssessments   NilEligibilityAssessment[]
+  filingEvidence   FilingEvidence[]
+  inwardSupplies   InwardSupply[]
+  auditLogs        AuditLog[]
+}
+
+model AuthorizedBusinessUser {
+  id         String   @id @default(cuid())
+  userId     String
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  businessId String
+  business   Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  // OWNER | ACCOUNTANT | VIEWER
+  role       String   @default("OWNER")
+  createdAt  DateTime @default(now())
+
+  @@unique([userId, businessId])
+  @@index([businessId])
+}
+
+model Customer {
+  id                 String    @id @default(cuid())
+  businessId         String
+  business           Business  @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  name               String
+  // JSON array of strings: aliases and transliterations (e.g. ["Ramesh","रमेश ट्रेडर्स"])
+  aliases            String    @default("[]")
+  gstin              String?
+  // REGISTERED | UNREGISTERED
+  registrationStatus String    @default("REGISTERED")
+  stateCode          String
+  billingAddress     String
+  shippingAddress    String?
+  shippingStateCode  String?
+  phone              String?
+  email              String?
+  archivedAt         DateTime?
+  createdAt          DateTime  @default(now())
+  updatedAt          DateTime  @updatedAt
+  invoices           Invoice[]
+
+  @@unique([businessId, gstin])
+  @@index([businessId])
+}
+
+model Product {
+  id               String    @id @default(cuid())
+  businessId       String
+  business         Business  @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  name             String
+  aliases          String    @default("[]")
+  description      String?
+  // GOODS | SERVICES
+  kind             String    @default("GOODS")
+  hsnSac           String
+  // UQC-style unit code: NOS, BOX, KGS, MTR, LTR, PCS, HRS ...
+  unit             String
+  defaultPrice     String
+  gstRate          String
+  priceIncludesTax Boolean   @default(false)
+  taxEffectiveFrom DateTime?
+  // USER_ENTERED | VERIFIED_CONFIG | DEMO_SEED — where the HSN/rate came from
+  taxSource        String    @default("USER_ENTERED")
+  taxConfirmedAt   DateTime?
+  archivedAt       DateTime?
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+  lineItems        InvoiceLineItem[]
+
+  @@index([businessId])
+}
+
+model Invoice {
+  id                     String    @id @default(cuid())
+  businessId             String
+  business               Business  @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  // DRAFT | ISSUED | CANCELLED
+  status                 String    @default("DRAFT")
+  invoiceNumber          String?
+  financialYear          String?
+  invoiceDate            DateTime
+  customerId             String?
+  customer               Customer? @relation(fields: [customerId], references: [id])
+  placeOfSupplyStateCode String?
+  // AUTO_SUGGESTED | USER_CONFIRMED
+  placeOfSupplySource    String?
+  // INTRA | INTER
+  supplyType             String?
+  reverseCharge          Boolean   @default(false)
+  taxableTotal           String    @default("0.00")
+  cgstTotal              String    @default("0.00")
+  sgstTotal              String    @default("0.00")
+  igstTotal              String    @default("0.00")
+  grandTotal             String    @default("0.00")
+  // TEXT | VOICE | SMS | MANUAL
+  source                 String    @default("TEXT")
+  sourceText             String?
+  sourceLanguage         String?
+  // RULES | CLAUDE | MANUAL
+  extractionMethod       String?
+  extractionNotes        String    @default("[]")
+  inboundMessageId       String?
+  idempotencyKey         String?
+  // Immutable JSON snapshot of the issued invoice + SHA-256 of it
+  snapshot               String?
+  snapshotHash           String?
+  issuedAt               DateTime?
+  issuedByUserId         String?
+  createdByUserId        String?
+  createdAt              DateTime  @default(now())
+  updatedAt              DateTime  @updatedAt
+
+  lineItems       InvoiceLineItem[]
+  emailDeliveries EmailDelivery[]
+
+  @@unique([businessId, invoiceNumber])
+  @@unique([businessId, idempotencyKey])
+  @@index([businessId, status, invoiceDate])
+}
+
+model InvoiceLineItem {
+  id               String   @id @default(cuid())
+  invoiceId        String
+  invoice          Invoice  @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+  productId        String?
+  product          Product? @relation(fields: [productId], references: [id])
+  position         Int
+  description      String
+  hsnSac           String
+  unit             String
+  quantity         String
+  unitPrice        String
+  priceIncludesTax Boolean  @default(false)
+  gstRate          String
+  taxableValue     String   @default("0.00")
+  cgst             String   @default("0.00")
+  sgst             String   @default("0.00")
+  igst             String   @default("0.00")
+  lineTotal        String   @default("0.00")
+
+  @@index([invoiceId])
+}
+
+model InvoiceNumberSequence {
+  id            String   @id @default(cuid())
+  businessId    String
+  business      Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  financialYear String
+  prefix        String
+  nextNumber    Int      @default(1)
+  updatedAt     DateTime @updatedAt
+
+  @@unique([businessId, financialYear])
+}
+
+// Merchant-to-Compte SMS (simulator / future provider webhook).
+// This is NOT the GSTN 14409 channel; GSTN verification codes are never stored here.
+model InboundMessage {
+  id                String   @id @default(cuid())
+  businessId        String?
+  business          Business? @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  // SMS_SIMULATOR | SMS_WEBHOOK
+  channel           String
+  providerMessageId String
+  fromNumber        String
+  body              String
+  bodyRedacted      Boolean  @default(false)
+  // INVOICE_COMMAND | CONFIRM_COMMAND | GSTN_COMMAND_REJECTED | UNKNOWN_SENDER | UNPARSEABLE
+  classification    String
+  // RECEIVED | DRAFT_CREATED | ISSUED | REJECTED
+  status            String
+  replyText         String?
+  invoiceId         String?
+  receivedAt        DateTime @default(now())
+
+  @@unique([channel, providerMessageId])
+  @@index([businessId])
+}
+
+model EmailDelivery {
+  id                String   @id @default(cuid())
+  businessId        String
+  business          Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  invoiceId         String
+  invoice           Invoice  @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+  toAddress         String
+  // RESEND | NOT_CONFIGURED
+  provider          String
+  // SENT | FAILED | NOT_SENT_PROVIDER_NOT_CONFIGURED
+  status            String
+  providerMessageId String?
+  providerResponse  String?
+  errorMessage      String?
+  requestedByUserId String?
+  createdAt         DateTime @default(now())
+
+  @@index([businessId, invoiceId])
+}
+
+model ReturnBatch {
+  id            String    @id @default(cuid())
+  businessId    String
+  business      Business  @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  // GSTR1
+  returnType    String
+  financialYear String
+  // MMYYYY of the (last month of the) reporting period
+  periodKey     String
+  // MONTHLY | QUARTERLY
+  periodType    String
+  // DRAFT_PREPARED | INTERNAL_DRAFT_EXPORTED
+  status        String    @default("DRAFT_PREPARED")
+  invoiceCount  Int       @default(0)
+  taxableTotal  String    @default("0.00")
+  taxTotal      String    @default("0.00")
+  // COMPTE_INTERNAL_DRAFT (never labelled portal-upload-ready unless schema-verified)
+  exportKind    String?
+  exportedAt    DateTime?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  @@unique([businessId, returnType, periodKey])
+}
+
+// Minimal locally recorded inward supplies (purchases). Used only as local evidence
+// that blocks nil GSTR-3B. Full purchase bookkeeping is a P2 feature.
+model InwardSupply {
+  id             String   @id @default(cuid())
+  businessId     String
+  business       Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  supplierName   String
+  supplierGstin  String?
+  documentNumber String
+  documentDate   DateTime
+  taxableValue   String
+  taxAmount      String
+  reverseCharge  Boolean  @default(false)
+  // MANUAL | DEMO_SEED
+  source         String   @default("MANUAL")
+  createdAt      DateTime @default(now())
+
+  @@index([businessId, documentDate])
+}
+
+model NilReturnFiling {
+  id                     String    @id @default(cuid())
+  businessId             String
+  business               Business  @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  gstin                  String
+  // GSTR1 | GSTR3B
+  returnType             String
+  financialYear          String
+  // MMYYYY as prescribed by GSTN (last month of quarter for quarterly filers)
+  periodKey              String
+  filingFrequency        String
+  // See src/lib/domain/filing-state.ts
+  status                 String    @default("NOT_STARTED")
+  // GOVERNMENT_SMS | PORTAL
+  filingChannel          String?
+  // true when the run used the in-app DEMO simulator — can never become FILED_VERIFIED
+  isDemo                 Boolean   @default(false)
+  eligibilityChecklist   String    @default("{}")
+  declarationAt          DateTime?
+  irreversibleAckAt      DateTime?
+  initiationReportedAt   DateTime?
+  confirmationReportedAt DateTime?
+  arn                    String?
+  // NONE | UNVERIFIED | VERIFIED
+  arnVerificationStatus  String    @default("NONE")
+  arnRecordedAt          DateTime?
+  rejectionReason        String?
+  createdAt              DateTime  @default(now())
+  updatedAt              DateTime  @updatedAt
+
+  assessments NilEligibilityAssessment[]
+  evidence    FilingEvidence[]
+
+  @@unique([businessId, returnType, periodKey, isDemo])
+}
+
+model NilEligibilityAssessment {
+  id                  String          @id @default(cuid())
+  filingId            String
+  filing              NilReturnFiling @relation(fields: [filingId], references: [id], onDelete: Cascade)
+  businessId          String
+  business            Business        @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  returnType          String
+  periodKey           String
+  // ELIGIBLE_SELF_DECLARED | INELIGIBLE | INCOMPLETE | NEEDS_MANUAL_REVIEW
+  outcome             String
+  answers             String
+  checks              String
+  declarationAccepted Boolean         @default(false)
+  declarationText     String
+  createdByUserId     String?
+  createdAt           DateTime        @default(now())
+
+  @@index([filingId])
+}
+
+model FilingEvidence {
+  id              String          @id @default(cuid())
+  filingId        String
+  filing          NilReturnFiling @relation(fields: [filingId], references: [id], onDelete: Cascade)
+  businessId      String
+  business        Business        @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  // USER_DECLARATION | LOCAL_LEDGER_CHECK | USER_REPORTED_EVENT | USER_ENTERED_ARN | OFFICIAL_RETRIEVED | DEMO_SIMULATION
+  kind            String
+  // USER | COMPTE_LEDGER | GSTN_OFFICIAL | DEMO_SIMULATOR
+  source          String
+  summary         String
+  payload         String          @default("{}")
+  createdByUserId String?
+  createdAt       DateTime        @default(now())
+
+  @@index([filingId])
+}
+
+model AuditLog {
+  id         String    @id @default(cuid())
+  businessId String?
+  business   Business? @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  userId     String?
+  action     String
+  entityType String
+  entityId   String?
+  metadata   String    @default("{}")
+  createdAt  DateTime  @default(now())
+
+  @@index([businessId, createdAt])
+}

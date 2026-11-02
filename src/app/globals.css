@@ -1,0 +1,31 @@
+@import "tailwindcss";
+
+@theme {
+  --font-sans: var(--font-noto), ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+  --color-canvas: #f7f7f4;
+  --color-ink: #192723;
+  --color-muted: #5d6b66;
+  --color-line: #e5e9e4;
+  --color-brand-50: #eef6f2;
+  --color-brand-100: #d5ebe1;
+  --color-brand-200: #a9d5c2;
+  --color-brand-500: #25735d;
+  --color-brand-600: #185c4a;
+  --color-brand-700: #185a4a;
+  --color-warn-50: #fff7e8;
+  --color-warn-600: #9a5b00;
+  --color-danger-50: #fdf0ef;
+  --color-danger-600: #b3261e;
+  --color-demo: #fde8e8;
+}
+
+html { -webkit-text-size-adjust: 100%; }
+body { background: var(--color-canvas); color: var(--color-ink); }
+:focus-visible { outline: 2px solid var(--color-brand-500); outline-offset: 2px; }
+.tabular { font-variant-numeric: tabular-nums; }
+
+/* Compte design system: calm editorial finance, not a generic admin template */
+body { background-image: radial-gradient(ellipse at 75% -20%, #eaf1e9 0%, transparent 46%); }
+::selection { background: #cde8d9; color: #173e31; }
+button, a, input, select, textarea { -webkit-tap-highlight-color: transparent; }
+@media (prefers-reduced-motion: no-preference) { a, button { transition: background-color .18s ease, border-color .18s ease, transform .18s ease, box-shadow .18s ease; } }
