@@ -49,7 +49,7 @@ export default async function ReturnsPage({ searchParams }: { searchParams: Prom
             {(r.draftCount > 0 || r.purchaseCount > 0) && <p className="mt-2 text-xs text-warn-600">{r.draftCount > 0 && `${r.draftCount} draft(s) `}{r.purchaseCount > 0 && `${r.purchaseCount} purchase record(s)`}</p>}
             <div className="mt-3 space-y-1.5 text-sm">
               {imported.count > 0 && <p className="text-xs font-semibold text-warn-600">Non-nil sales present in imported records. Do not file a nil GSTR-1 for this period.</p>}
-              <div className="flex items-center justify-between"><span>GSTR-1 nil workflow</span><FilingStatusBadge status={(r.nilGstr1?.status ?? "NOT_STARTED") as FilingStatus} label={label(r.nilGstr1?.status)} demo={r.nilGstr1?.isDemo} /></div>
+              <div className="flex items-center justify-between"><span>GSTR-1 nil workflow</span>{imported.count > 0 || r.issuedCount > 0 ? <Badge tone="warn">Not applicable — sales recorded</Badge> : <FilingStatusBadge status={(r.nilGstr1?.status ?? "NOT_STARTED") as FilingStatus} label={label(r.nilGstr1?.status)} demo={r.nilGstr1?.isDemo} />}</div>
               <div className="flex items-center justify-between"><span>GSTR-3B nil</span><FilingStatusBadge status={(r.nilGstr3b?.status ?? "NOT_STARTED") as FilingStatus} label={label(r.nilGstr3b?.status)} demo={r.nilGstr3b?.isDemo} /></div>
             </div>
             <div className="mt-4 flex flex-wrap gap-2">
