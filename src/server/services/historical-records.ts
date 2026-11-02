@@ -1,5 +1,6 @@
 import "server-only";
 import { prisma } from "@/server/db";
+import { invoiceMonthKey } from "@/lib/gst-import/invoice-month";
 import { parsePeriodKey, periodKeyFor, type ReturnPeriod } from "@/lib/domain/periods";
 export type HistoricalInvoice={id:string;periodKey:string;recipientGstin:string;number:string;date:string;value:number;taxable:number};
 export async function readHistorical(businessId:string){
@@ -21,10 +22,11 @@ export async function readHistorical(businessId:string){
   const d=i.invoiceDate;
   return [periodKeyFor(d.getUTCFullYear(),d.getUTCMonth()+1),String(i.invoiceNumber).trim().toUpperCase(),String(i.customer?.gstin).trim().toUpperCase()].join("|");
  }));
- const unique=invoices.filter(i=>!issuedKeys.has([i.periodKey,i.number.trim().toUpperCase(),i.recipientGstin.trim().toUpperCase()].join("|")));
- return {invoices:unique,hsn,periods:[...periods],overlapCount:invoices.length-unique.length};
+ const unique=invoices.filter(i=>!issuedKeys.has([invoiceMonthKey(i.date,i.periodKey),i.number.trim().toUpperCase(),i.recipientGstin.trim().toUpperCase()].join("|")));
+ const activityMonths=[...new Set(unique.map(i=>invoiceMonthKey(i.date,i.periodKey)))];
+ return {invoices:unique,hsn,periods:[...new Set([...periods,...activityMonths])],activityMonths,overlapCount:invoices.length-unique.length};
 }
 export function inReturnPeriod(invoices:HistoricalInvoice[],p:ReturnPeriod){return invoices.filter(i=>{
- try{const month=parsePeriodKey(i.periodKey,"MONTHLY");return month.start>=p.start&&month.start<p.endExclusive;}catch{return false;}
+ try{const month=parsePeriodKey(invoiceMonthKey(i.date,i.periodKey),"MONTHLY");return month.start>=p.start&&month.start<p.endExclusive;}catch{return false;}
 });}
 export function historicalTotals(rows:HistoricalInvoice[]){return {count:rows.length,taxable:rows.reduce((s,i)=>s+Number(i.taxable||0),0),value:rows.reduce((s,i)=>s+Number(i.value||0),0)};}
