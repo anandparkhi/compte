@@ -25,7 +25,7 @@ body { background: var(--color-canvas); color: var(--color-ink); }
 .tabular { font-variant-numeric: tabular-nums; }
 
 /* Compte design system: calm editorial finance, not a generic admin template */
-body { background-image: radial-gradient(ellipse at 75% -20%, #eaf1e9 0%, transparent 46%); }
+body { background-image: none; }
 ::selection { background: #cde8d9; color: #173e31; }
 button, a, input, select, textarea { -webkit-tap-highlight-color: transparent; }
 @media (prefers-reduced-motion: no-preference) { a, button { transition: background-color .18s ease, border-color .18s ease, transform .18s ease, box-shadow .18s ease; } }
